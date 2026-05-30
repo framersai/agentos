@@ -107,9 +107,9 @@ Each stage is its own shippable primitive with full README + 26-38 contract test
 | Stage | Primitive | Subpath | Doc |
 |---|---|---|---|
 | Ingest | [`IngestRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/IngestRouter.ts) | `@framers/agentos/ingest-router` | [Ingest Router](./INGEST_ROUTER.md) |
-| Recall | `MemoryRouter` | `@framers/agentos/memory-router` | [Memory Router](./MEMORY_ROUTER.md) |
+| Recall | [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) | `@framers/agentos/memory-router` | [Memory Router](./MEMORY_ROUTER.md) |
 | Recall (self-calibrating) | [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) | `@framers/agentos/memory-router` | [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) |
-| Read | `ReadRouter` | `@framers/agentos/read-router` | [Read Router](./READ_ROUTER.md) |
+| Read | [`ReadRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/ReadRouter.ts) | `@framers/agentos/read-router` | [Read Router](./READ_ROUTER.md) |
 | Composition | [`CognitivePipeline`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/index.ts) | `@framers/agentos/orchestration/pipeline` | (this doc) |
 
 Each primitive can be used standalone. CognitivePipeline is the convenience wrapper when you want all three stages coordinating.
@@ -279,7 +279,7 @@ const answer = await readRouter.decideAndDispatch(
 1. **Provider-agnostic.** Every classifier talks to a provider-agnostic adapter interface. No SDK imports inside any module.
 2. **Pure where possible.** [`selectIngestStrategy`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/select-strategy.ts), [`selectBackend`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`selectReadStrategy`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/read/select-strategy.ts) are pure functions: deterministic, no I/O. Safe inside cache keys and hot loops.
 3. **Dispatch is injected.** Stage routers don't execute backends — they hand a decision to a `FunctionXDispatcher` whose registry of executors the consumer wires. Lets you connect to your standing infrastructure (existing HybridRetriever, OM pipeline, custom retriever) without touching this module.
-4. **Pluggable composition.** `CognitivePipeline` doesn't care if a stage is an agentos router or a custom impl. Anything satisfying the stage interface slots in.
+4. **Pluggable composition.** [`CognitivePipeline`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/index.ts) doesn't care if a stage is an agentos router or a custom impl. Anything satisfying the stage interface slots in.
 5. **Frozen defaults.** Preset routing tables and default cost-points are `Object.freeze`d. Consumers cannot mutate the routing surface from outside the modules.
 6. **Typed errors.** Every misuse path raises a specific error class so application-layer fallbacks are easy to write: [`MemoryRouterUnknownCategoryError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryRouterBudgetExceededError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/select-backend.ts), [`MemoryRouterDispatcherMissingError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), [`UnsupportedMemoryBackendError`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/dispatcher.ts), plus `IngestRouter*` and `ReadRouter*` siblings.
 

@@ -26,8 +26,8 @@ interface ICheckpointStore {
 
 | Store | Import path | Use case |
 |---|---|---|
-| `InMemoryCheckpointStore` | `@framers/agentos/orchestration/checkpoint` | Development, testing, ephemeral runs |
-| Custom | Implement `ICheckpointStore` | Postgres, Redis, object storage, or any durable backend |
+| [`InMemoryCheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/InMemoryCheckpointStore.ts) | `@framers/agentos/orchestration/checkpoint` | Development, testing, ephemeral runs |
+| Custom | Implement [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts) | Postgres, Redis, object storage, or any durable backend |
 
 ```typescript
 import {

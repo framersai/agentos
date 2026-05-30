@@ -95,7 +95,7 @@ const empty    = new CLIRegistry(false);       // starts empty (no defaults)
 
 ### CLIScanResult
 
-The result from `scan()` or `check()` extends `CLIDescriptor`:
+The result from `scan()` or `check()` extends [`CLIDescriptor`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/types.ts):
 
 ```typescript
 interface CLIScanResult extends CLIDescriptor {
@@ -173,8 +173,8 @@ Two production bridges extend it:
 
 | Bridge | Binary | Purpose |
 |--------|--------|---------|
-| `ClaudeCodeCLIBridge` | `claude` | Anthropic Claude via Max subscription (no API key needed) |
-| `GeminiCLIBridge` | `gemini` | Google Gemini via Google account login (no API key needed) |
+| [`ClaudeCodeCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/ClaudeCodeCLIBridge.ts) | `claude` | Anthropic Claude via Max subscription (no API key needed) |
+| [`GeminiCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/GeminiCLIBridge.ts) | `gemini` | Google Gemini via Google account login (no API key needed) |
 
 Both bridges use `checkBinaryInstalled()` (which internally runs `which` + `--version`) before attempting LLM calls, and fall back gracefully when the binary is missing.
 
@@ -220,7 +220,7 @@ class MyToolBridge extends CLISubprocessBridge {
 
 ## Integration with cli-executor Extension
 
-The `cli-executor` extension pack (`@framers/agentos-ext-cli-executor`) provides tools that let agents execute arbitrary shell commands on the host. While it does not import `CLIRegistry` directly, the two systems are complementary:
+The `cli-executor` extension pack (`@framers/agentos-ext-cli-executor`) provides tools that let agents execute arbitrary shell commands on the host. While it does not import [`CLIRegistry`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) directly, the two systems are complementary:
 
 - **CLIRegistry** answers "what binaries exist?" -- discovery and detection.
 - **cli-executor** answers "can the agent run this command?" -- execution with security guardrails.

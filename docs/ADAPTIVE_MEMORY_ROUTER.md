@@ -138,12 +138,12 @@ const table = buildAdaptiveRoutingTable({
 
 ## API surface
 
-- `CalibrationSample`, [`CalibrationCell`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`AggregatedCalibration`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
+- [`CalibrationSample`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`CalibrationCell`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`AggregatedCalibration`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
 - `AdaptivePresetRule = 'minimize-cost' | 'balanced' | 'maximize-accuracy'`
 - [`aggregateCalibration`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure aggregator
 - [`selectByPreset`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure per-category selector
 - [`buildAdaptiveRoutingTable`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure full-table constructor
-- `AdaptiveMemoryRouter` — class extending `MemoryRouter` with calibration-derived table
+- [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — class extending [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) with calibration-derived table
 - [`AdaptiveMemoryRouterOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`SelectByPresetArgs`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`BuildAdaptiveRoutingTableArgs`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
 
 ## Related

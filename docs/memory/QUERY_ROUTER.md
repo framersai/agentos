@@ -25,7 +25,7 @@ The QueryRouter scaffold is ahead of the wired runtime in a few places:
 
 ## Host-Injected Runtime Hooks
 
-You can replace the built-in heuristic branches without forking `QueryRouter`
+You can replace the built-in heuristic branches without forking [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
 by passing host-provided callbacks in the constructor:
 
 - `graphExpand(seedChunks)` for GraphRAG or relationship expansion

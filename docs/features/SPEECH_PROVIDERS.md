@@ -173,7 +173,7 @@ If no configured provider matches the requirements, `resolveSTT()` / `resolveTTS
 
 ## Installing Extension Providers
 
-Extension providers ship as npm packages under the `@framers/agentos-ext-*` namespace and expose their provider implementation via an [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts). Install the package and pass your `ExtensionManager` to `refresh()`:
+Extension providers ship as npm packages under the `@framers/agentos-ext-*` namespace and expose their provider implementation via an [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts). Install the package and pass your [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) to `refresh()`:
 
 ```bash
 npm install @framers/agentos-ext-voice-synthesis

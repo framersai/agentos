@@ -32,7 +32,7 @@ AgentOS abstracts every LLM behind a single [`IProvider`](https://github.com/fra
 
 ## Overview
 
-AgentOS abstracts LLM access behind a unified `IProvider` interface. You configure providers via environment variables, and AgentOS handles model selection, streaming, tool calling, retries, and fallback routing.
+AgentOS abstracts LLM access behind a unified [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. You configure providers via environment variables, and AgentOS handles model selection, streaming, tool calling, retries, and fallback routing.
 
 **Key features:**
 

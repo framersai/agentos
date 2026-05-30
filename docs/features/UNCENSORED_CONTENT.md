@@ -74,7 +74,7 @@ Safe/standard tiers ignore the router and use the default provider chain.
 ### Refusal-retry
 
 When a model still produces wellness-bot speak despite the tier
-(happens with some OpenRouter routing hops), `PolicyAwareRouter` does not
+(happens with some OpenRouter routing hops), [`PolicyAwareRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) does not
 retry on its own — refusal detection is the caller's responsibility. The
 wilds-ai `CompanionOrchestrator` wraps this into a
 `runRefusalRetry` helper that iterates the full uncensored catalog on
@@ -162,7 +162,7 @@ Kontext's moderation is baked into the model weights.
 ## Extending the catalog
 
 `createUncensoredModelCatalog()` returns an immutable catalog. To add
-models, compose your own implementation of `UncensoredModelCatalog`:
+models, compose your own implementation of [`UncensoredModelCatalog`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts):
 
 ```typescript
 import type { UncensoredModelCatalog, CatalogEntry } from '@framers/agentos';

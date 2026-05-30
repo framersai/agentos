@@ -4,7 +4,7 @@
 
 `workflow()` and [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) ask you to think in terms of nodes and edges before you've thought in terms of intent. `mission()` lets you state the intent first and shape the graph later. You declare what the mission is supposed to accomplish — the goal template, the input schema, the return schema, the planner hints — and the compiler emits a working execution graph from those declarations. When the shape stabilises through use, you export it via `.toWorkflow()` and pin it as a deterministic [workflow()](./workflow-dsl.md) or [AgentGraph](./agent-graph.md) for production.
 
-Use `mission()` when you want a goal-centric authoring API and the runtime to choose the step plan. Use `workflow()` or `AgentGraph` when you need the graph shape pinned and reviewable.
+Use `mission()` when you want a goal-centric authoring API and the runtime to choose the step plan. Use `workflow()` or [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need the graph shape pinned and reviewable.
 
 ## Quick Start
 

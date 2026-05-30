@@ -107,7 +107,7 @@ To add support for a new CLI binary:
 4. Register in `CLIRegistry.WELL_KNOWN_CLIS` if it should be auto-discovered
 5. Register in [`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts), `SmallModelResolver`, `LLM_PROVIDERS`, `PROVIDER_CATALOG`, and the provider registry
 
-The `CLISubprocessBridge` base class handles ~60% of the work (spawn, pipe, NDJSON parse, timeout, health checks). Subclasses only implement what's CLI-specific.
+The [`CLISubprocessBridge`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLISubprocessBridge.ts) base class handles ~60% of the work (spawn, pipe, NDJSON parse, timeout, health checks). Subclasses only implement what's CLI-specific.
 
 ## Auto-Detection Order
 

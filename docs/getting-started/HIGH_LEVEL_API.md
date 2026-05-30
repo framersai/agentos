@@ -223,7 +223,7 @@ for the full contract.
 
 ## [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
 
-Use `QueryRouter` when you want grounded answers over a local markdown corpus
+Use [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you want grounded answers over a local markdown corpus
 without booting the full AgentOS runtime.
 
 ```ts
@@ -514,7 +514,7 @@ console.log(await session.usage());
 ```
 
 `agent({ tools })` accepts the same three forms as `generateText({ tools })`
-and `streamText({ tools })`: named tool maps, `ExternalToolRegistry`
+and `streamText({ tools })`: named tool maps, [`ExternalToolRegistry`](https://github.com/framersai/agentos/blob/master/src/api/runtime/externalToolRegistry.ts)
 (`Record`, `Map`, or iterable), and prompt-only `ToolDefinitionForLLM[]`.
 
 ### Per-agent identity via SOUL.md
@@ -644,7 +644,7 @@ stream with `resumeExternalToolRequest(...)`:
 
 If the pending tool calls are AgentOS-registered tools, prefer
 `resumeExternalToolRequestWithRegisteredTools(...)`. It executes the registered
-tools with the correct resume-time `ToolExecutionContext` and then resumes the
+tools with the correct resume-time [`ToolExecutionContext`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) and then resumes the
 stream for you.
 
 ```ts
@@ -691,7 +691,7 @@ original process exits.
 ## Guidance
 
 - Show high-level examples first in README and landing guides.
-- Keep low-level `AgentOS` examples in architecture, advanced usage, extensions, workflows, and runtime-control docs.
+- Keep low-level [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) examples in architecture, advanced usage, extensions, workflows, and runtime-control docs.
 - Document both layers explicitly. They are complementary, not competing.
 - Keep `generateImage()` provider-agnostic at the API boundary, but expose provider-specific knobs through `providerOptions` when needed.
 - Do not force downstream libraries to adopt `agent()` unless the helper reaches feature parity with their runtime needs.

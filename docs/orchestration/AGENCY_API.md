@@ -94,7 +94,7 @@ Three frames worth keeping:
   decides who reads what and when.
 - **Flows compose.** `agency()` returns an `Agent`, so an entire agency can sit
   inside another agency, or as a step inside `workflow()`, or as a node inside
-  `AgentGraph`. The brain abstraction stacks at every layer.
+  [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts). The brain abstraction stacks at every layer.
 
 The `agency()` factory returns an `Agent`-compatible interface, so anywhere you
 called `agent().generate(input)` you can drop in `agency().generate(input)`. The
@@ -122,8 +122,8 @@ The shared rule: if your problem decomposes into "one external request →
 one coordinated response", `agency()` is the right primitive. If your problem
 is fundamentally multi-turn with state evolving between turns, build your
 own orchestrator and reach into agentos for the lower-level primitives
-(`agent()`, `AgencyMemoryManager`, [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts), `EmergentAgentForge`,
-`EmergentAgentJudge`, the cognitive memory layer) directly.
+(`agent()`, [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts), [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts), [`EmergentAgentForge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentForge.ts),
+[`EmergentAgentJudge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentJudge.ts), the cognitive memory layer) directly.
 
 ---
 

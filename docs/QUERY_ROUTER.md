@@ -22,7 +22,7 @@ const result = await router.route('how do I configure a guardrail?');
 
 ## When To Use It
 
-Reach for `QueryRouter` when you're building any of these on top of a documentation corpus or knowledge base:
+Reach for [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you're building any of these on top of a documentation corpus or knowledge base:
 
 - An in-product help / "ask the docs" feature
 - A support copilot that answers from internal runbooks
@@ -56,7 +56,7 @@ If no embedding provider is configured, the router degrades cleanly to keyword s
 - Default path: `route()` classifies the query, then dispatches retrieval through the legacy [`QueryDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryDispatcher.ts).
 - Opt-in path: if a host calls `setUnifiedRetriever(...)`, `route()` switches to plan-aware retrieval through [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts).
 
-This matters because `UnifiedRetriever` is implemented and usable today, but it is not the default QueryRouter/runtime retrieval path yet.
+This matters because [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) is implemented and usable today, but it is not the default QueryRouter/runtime retrieval path yet.
 
 ## Current Limitations
 

@@ -121,7 +121,7 @@ const m = mission('deep-research')
 | Situation | Use |
 | --- | --- |
 | Exact steps known upfront | `workflow()` |
-| Steps known but complex branching needed | `AgentGraph` |
+| Steps known but complex branching needed | [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) |
 | Goal-first authoring with a fixed mission skeleton today | `mission()` |
 | Need agent loops / cycles | `AgentGraph` |
 | Cost-bounded, deterministic execution | `workflow()` |

@@ -373,7 +373,7 @@ The eleven [`ContextualElementType`](https://github.com/framersai/agentos/blob/m
 
 HEXACO trait mutation is **not** a metaprompt surface. The metaprompt loop edits mood, context, and imprints, all of which are session-scoped or session-resettable. Trait values are different: they modulate three cognitive memory mechanisms (involuntary recall, consolidation, schema encoding) in code, not just prompt text, and they persist across sessions through the persona overlay. So trait edits run through two dedicated paths with stricter budgets.
 
-### `AdaptPersonalityTool` (emergent, agent-driven)
+### [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) (emergent, agent-driven)
 
 [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) is an [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) the runtime exposes to the LLM when `emergent.enabled` is true on the agency config. The agent calls it like any other tool, with a reasoning argument the runtime persists to the mutation store:
 
@@ -569,7 +569,7 @@ Metaprompt execution runs in parallel with the main turn via `Promise.allSettled
 | GMI event types | [`src/cognition/substrate/GMIEvent.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIEvent.ts) |
 | Sentiment configuration shape | [`src/cognition/substrate/personas/IPersonaDefinition.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) ([`SentimentTrackingConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts)) |
 | Prompt engine + contextual element evaluator | [`src/core/llm/PromptEngine.ts`](https://github.com/framersai/agentos/blob/master/src/core/llm/PromptEngine.ts) |
-| Contextual element types | [`src/core/llm/IPromptEngine.ts`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) (`ContextualElementType` enum) |
+| Contextual element types | [`src/core/llm/IPromptEngine.ts`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) ([`ContextualElementType`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) enum) |
 | Emergent trait mutation tool | [`src/cognition/emergent/AdaptPersonalityTool.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) |
 | Heuristic offline trait drift | [`src/cognition/memory/mechanisms/PersonaDriftMechanism.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/mechanisms/PersonaDriftMechanism.ts) |
 
@@ -591,7 +591,7 @@ Metaprompt execution runs in parallel with the main turn via `Promise.allSettled
 
 ### Affective state and adaptation
 
-- Russell, J. A. (1980). [*A circumplex model of affect.*](https://psycnet.apa.org/doi/10.1037/h0077714) *Journal of Personality and Social Psychology*, 39(6), 1161-1178. The valence/arousal model the `GMIMood` enum and sentiment thresholds implicitly assume. Mood transitions follow the same continuous-space intuition.
+- Russell, J. A. (1980). [*A circumplex model of affect.*](https://psycnet.apa.org/doi/10.1037/h0077714) *Journal of Personality and Social Psychology*, 39(6), 1161-1178. The valence/arousal model the [`GMIMood`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts) enum and sentiment thresholds implicitly assume. Mood transitions follow the same continuous-space intuition.
 
 ### Personality structure
 

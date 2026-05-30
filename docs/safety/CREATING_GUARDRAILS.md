@@ -31,7 +31,7 @@ If an existing pack already covers your need, prefer configuring it over writing
 
 ### The contract at a glance
 
-Every guardrail implements the `IGuardrailService` interface. Both methods are optional -- implement only what you need.
+Every guardrail implements the [`IGuardrailService`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/IGuardrailService.ts) interface. Both methods are optional -- implement only what you need.
 
 ```typescript
 interface IGuardrailService {

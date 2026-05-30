@@ -213,7 +213,7 @@ This guardrail is a building block. It does not, and cannot, make a deployment H
 
 **Latency.** Regex tier: microseconds per chunk. NLP prefilter: ~5-10ms. NER model first-call: ~1-2s for model load, ~30-80ms per inference after that. LLM judge: full provider round-trip (~300-800ms typical for `gpt-4o-mini`). The judge runs in parallel with other Phase 2 guardrails so it does not stack linearly with classification latency.
 
-**Memory.** The NER model is ~110MB on disk and ~150MB resident. It loads lazily on first scan. Subsequent scans, the streaming guardrail, and the `pii_scan`/`pii_redact` tools all share the same instance through `SharedServiceRegistry`.
+**Memory.** The NER model is ~110MB on disk and ~150MB resident. It loads lazily on first scan. Subsequent scans, the streaming guardrail, and the `pii_scan`/`pii_redact` tools all share the same instance through [`SharedServiceRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/SharedServiceRegistry.ts).
 
 **Cost.** Regex and NER tiers are free at inference time after the model load. The LLM judge is the only paid surface — one small completion per scan, typically 200-500 tokens in and 50-100 tokens out. A 256-entry LRU cache reduces this further when the same text repeats across turns.
 
@@ -221,7 +221,7 @@ This guardrail is a building block. It does not, and cannot, make a deployment H
 
 **False negatives.** The regex tier cannot infer context: it will not flag a name as PERSON, and it will not detect a medical condition referenced colloquially ("my arthritis is acting up"). The NER model improves recall on names and locations. The LLM judge is the recall safety net for context-dependent PII.
 
-**Streaming pitfalls.** A name split across two SSE chunks (`"Jo"` then `"hn"`) will be missed by a naive per-chunk regex. The `SentenceBoundaryBuffer` upstream of this guardrail handles fragment coalescing, so the redactor always sees sentence-shaped windows.
+**Streaming pitfalls.** A name split across two SSE chunks (`"Jo"` then `"hn"`) will be missed by a naive per-chunk regex. The [`SentenceBoundaryBuffer`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/SentenceBoundaryBuffer.ts) upstream of this guardrail handles fragment coalescing, so the redactor always sees sentence-shaped windows.
 
 ## Where things live
 

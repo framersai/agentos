@@ -8,7 +8,7 @@ The effect is a coverage mechanism: by construction, retrieved chunks span multi
 
 ## Mental model
 
-Parallel to [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts) (hypothesis-driven) and [`ProspectiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/prospective/ProspectiveMemoryManager.ts) (time/event-triggered), `SessionRetriever` is a query-time retrieval strategy under `memory/retrieval/`. All three are opt-in; callers wire them up when their use case benefits.
+Parallel to [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts) (hypothesis-driven) and [`ProspectiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/prospective/ProspectiveMemoryManager.ts) (time/event-triggered), [`SessionRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts) is a query-time retrieval strategy under `memory/retrieval/`. All three are opt-in; callers wire them up when their use case benefits.
 
 ## Two-stage flow
 
@@ -28,7 +28,7 @@ Parallel to [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/s
 
 - Long-term conversational memory where answers span multiple sessions (LongMemEval multi-session, LOCOMO multi-hop).
 - Deployments where per-session topical coherence is high and session boundaries are semantically meaningful.
-- Configurations with an LLM budget for ingest-time summary generation (`SessionSummarizer` call per unique session).
+- Configurations with an LLM budget for ingest-time summary generation ([`SessionSummarizer`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/ingest/SessionSummarizer.ts) call per unique session).
 
 ## When NOT to use
 

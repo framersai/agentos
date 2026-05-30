@@ -175,8 +175,8 @@ CLI's `chat --telephony-webhook-port=...` flags ([documented below](#cli-flags))
 and expose it with a tunnel (`ngrok http 3001`).
 
 Programmatically, wire the webhook routes onto your own HTTP server using the
-exports from `@framers/agentos/channels/telephony` — `CallManager`,
-`TelephonyStreamTransport`, and the per-provider media-stream parsers
+exports from `@framers/agentos/channels/telephony` — [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts),
+[`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts), and the per-provider media-stream parsers
 ([`TwilioMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TwilioMediaStreamParser.ts), [`TelnyxMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TelnyxMediaStreamParser.ts), [`PlivoMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/PlivoMediaStreamParser.ts))
 — mounted under whatever framework you already run. A drop-in
 `startTelephonyWebhookServer` factory is on the roadmap but has not shipped

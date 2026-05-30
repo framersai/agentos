@@ -236,7 +236,7 @@ const listenNode = voiceNode('intake', {
   .build();
 ```
 
-The builder produces a `GraphNode` with:
+The builder produces a [`GraphNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) with:
 
 | Property | Value |
 |----------|-------|
@@ -250,7 +250,7 @@ Exit reasons map to the next node via `.on(exitReason, targetNodeId)`. The `.on(
 
 ### Voice Transport Mode
 
-When the entire workflow should run inside a single phone call, declare a `transport` at the workflow level. All nodes in the graph then receive input from STT and deliver output to TTS via a `VoiceTransportAdapter`.
+When the entire workflow should run inside a single phone call, declare a `transport` at the workflow level. All nodes in the graph then receive input from STT and deliver output to TTS via a [`VoiceTransportAdapter`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceTransportAdapter.ts).
 
 ```typescript
 import { workflow } from '@framers/agentos/orchestration';
@@ -353,7 +353,7 @@ The [`VoiceNodeExecutor`](https://github.com/framersai/agentos/blob/master/src/o
 | `silence-timeout` | No speech for 30 s when `exitOn: silence-timeout` | timeout handler / retry |
 | `interrupted` | `AbortController` fired with a [`VoiceInterruptError`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/VoiceInterruptError.ts) (barge-in) | re-listen / cancel TTS |
 
-When a barge-in occurs, the executor catches the `VoiceInterruptError` and returns `exitReason: 'interrupted'`. Wire a loopback edge `.on('interrupted', 'listen')` to restart the listen cycle:
+When a barge-in occurs, the executor catches the [`VoiceInterruptError`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/VoiceInterruptError.ts) and returns `exitReason: 'interrupted'`. Wire a loopback edge `.on('interrupted', 'listen')` to restart the listen cycle:
 
 ```typescript
 voiceNode('listen', { mode: 'conversation' })
@@ -394,7 +394,7 @@ for await (const event of runtime.stream(graph, input)) {
 
 Voice nodes use `checkpoint: 'before'` so the runtime takes a state snapshot before each voice session starts. If the process crashes mid-call, the graph can be resumed from the beginning of that voice node.
 
-In addition, the `VoiceNodeExecutor` writes a [`VoiceNodeCheckpoint`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceNodeExecutor.ts) to `scratchUpdate[nodeId]` after every execution:
+In addition, the [`VoiceNodeExecutor`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceNodeExecutor.ts) writes a [`VoiceNodeCheckpoint`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceNodeExecutor.ts) to `scratchUpdate[nodeId]` after every execution:
 
 ```typescript
 interface VoiceNodeCheckpoint {
@@ -535,4 +535,4 @@ const orchestrator = new VoicePipelineOrchestrator({
 - [`packages/agentos/src/voice-pipeline/VoicePipelineOrchestrator.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/VoicePipelineOrchestrator.ts) — the state machine
 - [`packages/agentos/src/voice-pipeline/HeuristicEndpointDetector.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/HeuristicEndpointDetector.ts) + [`AcousticEndpointDetector.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/AcousticEndpointDetector.ts) — endpoint detection strategies
 - [`packages/agentos/src/voice-pipeline/HardCutBargeinHandler.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/HardCutBargeinHandler.ts) + [`SoftFadeBargeinHandler.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/SoftFadeBargeinHandler.ts) — barge-in handlers
-- [`packages/agentos/src/voice-pipeline/types.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/types.ts) — `IStreamTransport`, `IStreamingSTT`, `IStreamingTTS`, `IBargeinHandler` interfaces
+- [`packages/agentos/src/voice-pipeline/types.ts`](https://github.com/framersai/agentos/blob/master/src/voice-pipeline/types.ts) — [`IStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts), [`IStreamingSTT`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts), [`IStreamingTTS`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts), [`IBargeinHandler`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) interfaces

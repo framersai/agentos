@@ -96,7 +96,7 @@ const { text } = await generateText({ prompt: 'hello' });
 // then to a local ollama server. Providers not in the list are skipped.
 ```
 
-Throws if you list an unknown provider id (typo guard). Pass an empty array to disable auto-detection entirely (callers must then supply a provider inline or via `setDefaultProvider`). Call `clearProviderPriority()` (or `setProviderPriority(undefined)`) to revert to the default order.
+Throws if you list an unknown provider id (typo guard). Pass an empty array to disable auto-detection entirely (callers must then supply a provider inline or via [`setDefaultProvider`](https://github.com/framersai/agentos/blob/master/src/api/runtime/global-default.ts)). Call `clearProviderPriority()` (or `setProviderPriority(undefined)`) to revert to the default order.
 
 ### Environment variables
 
@@ -199,7 +199,7 @@ Personality vectors, multimodal RAG, streaming guardrails, channel adapters, and
 
 ## Provider Configuration
 
-Every entry point (`generateText`, `streamText`, `generateObject`, `agent`, `agency`, etc.) accepts the same three provider fields:
+Every entry point (`generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), `generateObject`, [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), etc.) accepts the same three provider fields:
 
 | Field | Required? | Default | Notes |
 |---|---|---|---|
@@ -424,6 +424,6 @@ Usage: { inputTokens: 312, outputTokens: 487, totalTokens: 799, estimatedCost: 0
 | Token-efficient capability discovery              | [DISCOVERY.md](./DISCOVERY.md)               |
 | Image generation across 5 providers               | [IMAGE_GENERATION.md](./IMAGE_GENERATION.md) |
 | Practical cookbook examples                       | [EXAMPLES.md](./EXAMPLES.md)                 |
-| Runtime-configured tools and full `AgentOS` setup | [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md)     |
+| Runtime-configured tools and full [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) setup | [HIGH_LEVEL_API.md](./HIGH_LEVEL_API.md)     |
 | Full API hierarchy                                | [AGENCY_API.md](./AGENCY_API.md)             |
 | Architecture overview                             | [ARCHITECTURE.md](./ARCHITECTURE.md)         |

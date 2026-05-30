@@ -22,7 +22,7 @@ graph LR
 
 ## AgentGraph — Full Graph Builder
 
-Use `AgentGraph` when you need cycles, complex conditional routing, subgraph composition, or fine-grained control over graph topology.
+Use [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need cycles, complex conditional routing, subgraph composition, or fine-grained control over graph topology.
 
 ### Minimal Example
 

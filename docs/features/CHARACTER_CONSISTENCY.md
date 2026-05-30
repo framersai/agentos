@@ -84,7 +84,7 @@ await generateImage({
 
 ## AvatarPipeline Integration
 
-The `AvatarPipeline` uses consistency modes per stage:
+The [`AvatarPipeline`](https://github.com/framersai/agentos/blob/master/src/io/media/avatar/AvatarPipeline.ts) uses consistency modes per stage:
 
 | Stage | Mode | Rationale |
 |-------|------|-----------|

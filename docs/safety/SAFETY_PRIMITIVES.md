@@ -83,7 +83,7 @@ const stats = breaker.getStats();
 
 A status-aware, process-lifetime memory of LLM provider health, keyed by `providerId`. Wired into [`generateText`](https://github.com/framersai/agentos/blob/master/src/api/generateText.ts) and [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts) so the next caller doesn't pay a full TLS round-trip to rediscover a provider that just returned `402 Insufficient Credits` or `401 Invalid API key`.
 
-The plain `CircuitBreaker` above uses a single failure-threshold + cooldown pair per instance — fine for one-off operations. The router needs **per-error-class** behavior: open immediately on a payment or auth failure, but require a streak before tripping on a 429 or 5xx. This is what the registry adds.
+The plain [`CircuitBreaker`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) above uses a single failure-threshold + cooldown pair per instance — fine for one-off operations. The router needs **per-error-class** behavior: open immediately on a payment or auth failure, but require a streak before tripping on a 429 or 5xx. This is what the registry adds.
 
 | Error class                | Threshold | Cooldown |
 | -------------------------- | --------- | -------- |
@@ -96,7 +96,7 @@ The 5-minute window on 402 reflects operational reality: credits might get toppe
 
 ### How the router uses it
 
-1. **Before the primary call**, `generateText` consults `globalLLMProviderHealth.isOpen(resolvedProviderId)`. If the breaker is open, it throws a synthetic `LLMProviderCircuitOpenError` with `httpStatus: 503`. The existing `isRetryableError` check recognizes that status and routes the call into the fallback chain. No network round-trip, no TLS handshake, no waste.
+1. **Before the primary call**, `generateText` consults `globalLLMProviderHealth.isOpen(resolvedProviderId)`. If the breaker is open, it throws a synthetic `LLMProviderCircuitOpenError` with `httpStatus: 503`. The existing [`isRetryableError`](https://github.com/framersai/agentos/blob/master/src/api/generateText.ts) check recognizes that status and routes the call into the fallback chain. No network round-trip, no TLS handshake, no waste.
 2. **On a real provider error** (anything caught in the outer try/catch), `recordFailure(providerId, error)` classifies the error by HTTP status and either trips immediately (for 401/402/403) or increments the streak counter (for 429/5xx).
 3. **On success**, `recordSuccess(providerId)` resets the streak counter so a future transient failure starts fresh. A single success does NOT shorten an already-open cooldown: the breaker is open precisely because we want to stop probing for a window.
 4. **In the fallback chain loop**, every fallback entry is checked against `isOpen()` before its attempt. A dead chain entry is skipped instantly, so the loop walks to the first healthy provider with O(N) constant-time checks rather than O(N) network calls.
@@ -105,8 +105,8 @@ The 5-minute window on 402 reflects operational reality: credits might get toppe
 
 The registry reads HTTP status from three sources, in order:
 
-1. `[NNN] ...` prefix in `error.message` — the shape `OpenRouterProvider` decorates its errors with so downstream regex-based routing can find them.
-2. `error.statusCode` numeric property — `OpenRouterProviderError` sets this explicitly.
+1. `[NNN] ...` prefix in `error.message` — the shape [`OpenRouterProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/OpenRouterProvider.ts) decorates its errors with so downstream regex-based routing can find them.
+2. `error.statusCode` numeric property — [`OpenRouterProviderError`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/errors/OpenRouterProviderError.ts) sets this explicitly.
 3. `error.status` numeric property — the Anthropic and OpenAI SDK shape.
 
 If none of those resolves, the error is treated as the conservative transient class (5-failure threshold, 60 s cooldown). Better to under-protect on a one-off network blip than lock out a healthy provider.
@@ -140,7 +140,7 @@ expect(isolated.isOpen('mock-provider')).toBe(true);
 
 ### Why a singleton
 
-Provider health is process-wide state. Two concurrent `generateText` calls inside the same Node process see the same OpenRouter: if one just discovered it's at 402, the other shouldn't redo the discovery. The `globalLLMProviderHealth` singleton is the natural granularity. Tests construct their own `LLMProviderHealthRegistry` instances to keep state isolated across cases.
+Provider health is process-wide state. Two concurrent `generateText` calls inside the same Node process see the same OpenRouter: if one just discovered it's at 402, the other shouldn't redo the discovery. The [`globalLLMProviderHealth`](https://github.com/framersai/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) singleton is the natural granularity. Tests construct their own [`LLMProviderHealthRegistry`](https://github.com/framersai/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) instances to keep state isolated across cases.
 
 The registry is **ephemeral by design**: it lives in memory and resets on server restart. Persistent provider-health tracking would add complexity (Redis, write-through cache invalidation) for a problem the in-process singleton already solves for the dominant case: a long-running batch job hammering a degraded provider.
 
@@ -381,7 +381,7 @@ Additionally, [`ActionDeduplicator`](https://github.com/framersai/agentos/blob/m
 
 | Layer | Protection | Default Trigger | Error Type |
 |-------|-----------|----------------|------------|
-| CircuitBreaker | Opens after failures, cooldown before retry | 5 fails in 60s | `CircuitOpenError` |
+| CircuitBreaker | Opens after failures, cooldown before retry | 5 fails in 60s | [`CircuitOpenError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) |
 | CostGuard | Hard spending cap per session/day/operation | $5/day per agent | [`CostCapExceededError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) |
 | StuckDetector | Pause on repeated output or oscillation | 3 identical outputs in 5 min | Callback-driven |
 | SafetyEngine | Killswitches + rate limiting | 10 posts/hr, 60 votes/hr | `{ allowed: false }` |

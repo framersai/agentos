@@ -36,7 +36,7 @@ Key implementation points:
 
 - `ToolOrchestrator.listAvailableTools()` returns the tool schemas the model can call this turn.
 - `ToolOrchestrator.processToolCall()` enforces permissions and delegates execution to [`ToolExecutor`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolExecutor.ts).
-- `ToolExecutor` resolves tools from the tool [`ExtensionRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionRegistry.ts) by tool-call name (`ITool.name`).
+- [`ToolExecutor`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolExecutor.ts) resolves tools from the tool [`ExtensionRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionRegistry.ts) by tool-call name (`ITool.name`).
 
 ## Extensions: How Tools Load
 

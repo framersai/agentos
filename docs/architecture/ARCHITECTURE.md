@@ -28,7 +28,7 @@ The `src/` tree is organized into 26 domain-specific top-level modules. Only fou
 
 **Key architectural patterns:**
 
-- **GMI** (Generalized Mind Instance) delegates to focused collaborators: [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts), [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts), [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts), and [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts). Persona layering lives in `cognitive_substrate/persona_overlays/`. Personas can be loaded from JSON (the legacy [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) format) or from `SOUL.md` workspace directories via `SoulLoader` (`cognitive_substrate/personas/SoulLoader.ts`) — both produce the same runtime `IPersonaDefinition`. See [SOUL_FILES.md](../SOUL_FILES.md) for the per-agent identity convention.
+- **GMI** (Generalized Mind Instance) delegates to focused collaborators: [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts), [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts), [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts), and [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts). Persona layering lives in `cognitive_substrate/persona_overlays/`. Personas can be loaded from JSON (the legacy [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) format) or from `SOUL.md` workspace directories via `SoulLoader` (`cognitive_substrate/personas/SoulLoader.ts`) — both produce the same runtime [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts). See [SOUL_FILES.md](../SOUL_FILES.md) for the per-agent identity convention.
 
 - **AgentOS** is the public lifecycle facade. Setup and runtime concerns are in `api/runtime/` ([`WorkflowFacade`](https://github.com/framersai/agentos/blob/master/src/api/runtime/WorkflowFacade.ts), [`CapabilityDiscoveryInitializer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/CapabilityDiscoveryInitializer.ts), [`RagMemoryInitializer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/RagMemoryInitializer.ts)). High-level helpers (`generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts)) live under `api/`.
 
@@ -39,9 +39,9 @@ All paths below are under [`packages/agentos/src/`](https://github.com/framersai
 | Module | Subdirs | Purpose |
 | --- | --- | --- |
 | `agents/` | `definitions/` · `agency/` | Agent type definitions and multi-agent coordination ([`AgencyRegistry`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyRegistry.ts)) |
-| `api/` | `runtime/` · `types/` | Public API surface — [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), `generateText`, `streamText`, `agent`, `agency`, orchestrator collaborators, provider defaults |
+| `api/` | `runtime/` · `types/` | Public API surface — [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), `generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), orchestrator collaborators, provider defaults |
 | `channels/` | `adapters/` · `telephony/` · `social-posting/` | Platform adapters (Discord, Slack), voice-call providers (Twilio, Vonage), social-post management |
-| `cognitive_substrate/` | `personas/` · `persona_overlays/` | The GMI itself plus `ConversationHistoryManager`, `CognitiveMemoryBridge`, `SentimentTracker`, `MetapromptExecutor`, and persona loaders (JSON + `SOUL.md` via `SoulLoader`) |
+| `cognitive_substrate/` | `personas/` · `persona_overlays/` | The GMI itself plus [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts), [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts), [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts), [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts), and persona loaders (JSON + `SOUL.md` via `SoulLoader`) |
 | `core/` | `config/` · `conversation/` · `embeddings/` · `llm/` · `logging/` · `rate-limiting/` · `storage/` · `streaming/` · `tools/` · `utils/` · `vector-store/` | Foundational infrastructure: shared interfaces, the [`IStorageAdapter`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts), the [`StreamingManager`](https://github.com/framersai/agentos/blob/master/src/core/streaming/StreamingManager.ts), the [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) / [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts), embedding and vector-store abstractions |
 | `discovery/` | — | Capability-discovery engine (tiered semantic search) |
 | `emergent/` | — | Runtime tool forging and self-improvement (`forge_tool`, [`EmergentCapabilityEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentCapabilityEngine.ts), [`EmergentJudge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentJudge.ts)) |
@@ -69,7 +69,7 @@ All paths below are under [`packages/agentos/src/`](https://github.com/framersai
 
 The diagram at the top of this page is the canonical layered view. From top to bottom:
 
-1. **API surface** — `generateText` / `streamText` / `agent` / `agency` / `generateImage`, plus the `AgentOS` lifecycle facade.
+1. **API surface** — `generateText` / `streamText` / `agent` / `agency` / `generateImage`, plus the [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) lifecycle facade.
 2. **Orchestration** — DAG runtime, `workflow()`, `mission()`, [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), HITL, checkpointing, planning engine.
 3. **GMI** — per-mind state: `ConversationHistory`, `CognitiveMemoryBridge`, `SentimentTracker`, `MetapromptExecutor`, persona overlays.
 4. **Safety & Guardrails** alongside **Tools & Extensions** — 5-tier security (PII, toxicity, grounding, circuit breakers, cost guard) and the 110-extension / 88-skill catalog with capability discovery and runtime tool forging.
@@ -178,7 +178,7 @@ for await (const chunk of gmi.processTurnStream(turnInput)) {
 
 - [`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) -- Pool of GMI instances keyed by persona/session
 - [`AgentOSOrchestrator`](https://github.com/framersai/agentos/blob/master/src/api/runtime/AgentOSOrchestrator.ts) -- Turn preparation and stream transformation
-- `StreamingManager` -- WebSocket/SSE stream multiplexing
+- [`StreamingManager`](https://github.com/framersai/agentos/blob/master/src/core/streaming/StreamingManager.ts) -- WebSocket/SSE stream multiplexing
 - [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) -- Tool, guardrail, and workflow extension loading
 - [`ConversationManager`](https://github.com/framersai/agentos/blob/master/src/core/conversation/ConversationManager.ts) -- Cross-session conversation persistence
 
@@ -195,14 +195,14 @@ A user request flows through the following stages:
 3. **GMI Selection** -- Get or create a GMI instance for the user/persona/session tuple.
 4. **Memory Retrieval** -- `CognitiveMemoryBridge` retrieves relevant memory traces; RAG retrieval runs if configured.
 5. **Prompt Construction** -- `MetapromptExecutor` assembles system, persona, memory, RAG context, and conversation history into the prompt via `PromptBuilder`.
-6. **Pre-execution Guardrails** -- `ParallelGuardrailDispatcher` runs input guardrails (sanitizers first, classifiers in parallel).
-7. **Tool Orchestration** -- `ToolOrchestrator` resolves and executes any tool calls selected by the LLM.
+6. **Pre-execution Guardrails** -- [`ParallelGuardrailDispatcher`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/ParallelGuardrailDispatcher.ts) runs input guardrails (sanitizers first, classifiers in parallel).
+7. **Tool Orchestration** -- [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) resolves and executes any tool calls selected by the LLM.
 8. **LLM Execution** -- `StreamingManager` sends the prompt to the selected LLM provider and streams chunks.
 9. **Post-execution Guardrails** -- Output guardrails evaluate the response (toxicity, PII, grounding).
 10. **Memory Update** -- `CognitiveMemoryBridge` encodes new memory traces; [`MemoryObserver`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryObserver.ts) queues background consolidation.
 11. **Analytics** -- [`Tracer`](https://github.com/framersai/agentos/blob/master/src/safety/evaluation/observability/Tracer.ts) records OpenTelemetry spans; cost/token metrics are tracked.
 
-The `TurnExecutionPipeline` (in `api/runtime/`) handles steps 2-6 before handing off to the LLM. `GMIChunkTransformer` maps raw LLM chunks into [`AgentOSResponse`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts) format. `ExternalToolResultHandler` manages tool-result continuation loops.
+The [`TurnExecutionPipeline`](https://github.com/framersai/agentos/blob/master/src/api/runtime/TurnExecutionPipeline.ts) (in `api/runtime/`) handles steps 2-6 before handing off to the LLM. [`GMIChunkTransformer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/GMIChunkTransformer.ts) maps raw LLM chunks into [`AgentOSResponse`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts) format. [`ExternalToolResultHandler`](https://github.com/framersai/agentos/blob/master/src/api/runtime/ExternalToolResultHandler.ts) manages tool-result continuation loops.
 
 ### Sequence Diagram
 
@@ -251,9 +251,9 @@ sequenceDiagram
 | Type | Module | Purpose |
 |------|--------|---------|
 | [`AgentOSInput`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSInput.ts) | `api/types/` | Normalized request envelope (text, audio, images, metadata) |
-| `AgentOSResponse` | `api/types/` | Streamed response chunks (TEXT_DELTA, TOOL_CALL, FINAL_RESPONSE, ERROR) |
+| [`AgentOSResponse`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts) | `api/types/` | Streamed response chunks (TEXT_DELTA, TOOL_CALL, FINAL_RESPONSE, ERROR) |
 | [`GMITurnInput`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts) | `cognitive_substrate/IGMI` | Internal turn representation consumed by the GMI |
-| `GMIOutputChunk` | `cognitive_substrate/IGMI` | Per-chunk output from the cognitive engine |
+| [`GMIOutputChunk`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts) | `cognitive_substrate/IGMI` | Per-chunk output from the cognitive engine |
 | [`ConversationContext`](https://github.com/framersai/agentos/blob/master/src/core/conversation/ConversationContext.ts) | `core/conversation/` | Session state: history, active persona, user context |
 
 ---
@@ -262,8 +262,8 @@ sequenceDiagram
 
 The extension runtime is centered on three core pieces:
 
-1. **[`ExtensionManifest`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts) / `ExtensionPack`** -- Declarative loading of tool bundles, guardrails, and channel adapters.
-2. **`ExtensionManager`** -- Descriptor activation and runtime access.
+1. **[`ExtensionManifest`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts) / [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts)** -- Declarative loading of tool bundles, guardrails, and channel adapters.
+2. **[`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts)** -- Descriptor activation and runtime access.
 3. **[`ISharedServiceRegistry`](https://github.com/framersai/agentos/blob/master/src/extensions/ISharedServiceRegistry.ts)** -- Lazy singleton reuse across packs (for NLP pipelines, ONNX classifiers, embedding functions).
 
 ```typescript
@@ -327,7 +327,7 @@ Packs are loaded by including them in the `extensionManifest` passed to `AgentOS
 |------|----------|---------------|-------------|
 | `tool` | [`EXTENSION_KIND_TOOL`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) | `tool: ITool` | Callable tool registered in ToolOrchestrator |
 | `guardrail` | [`EXTENSION_KIND_GUARDRAIL`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) | `guardrail: IGuardrailService` | Input/output guardrail |
-| `workflow` | [`EXTENSION_KIND_WORKFLOW`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) | `workflow: WorkflowDescriptorPayload` | Reusable workflow definition |
+| [`workflow`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts) | [`EXTENSION_KIND_WORKFLOW`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) | `workflow: WorkflowDescriptorPayload` | Reusable workflow definition |
 | `provenance` | [`EXTENSION_KIND_PROVENANCE`](https://github.com/framersai/agentos/blob/master/src/extensions/types.ts) | `provenance: IProvenanceProvider` | Content anchoring provider |
 
 ### Guardrail Dispatch Model
@@ -664,7 +664,7 @@ Located in `memory/mechanisms/`, each mechanism is HEXACO-modulated:
 
 1. **After user message**: `CognitiveMemoryBridge.encode()` creates a MemoryTrace with personality-modulated strength
 2. **Before prompt construction**: `assembleForPrompt()` retrieves and formats memory within a token budget
-3. **After response**: `MemoryObserver` feeds the response to the observer buffer for background consolidation
+3. **After response**: [`MemoryObserver`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryObserver.ts) feeds the response to the observer buffer for background consolidation
 
 For full details, see [Cognitive Memory](../memory/COGNITIVE_MEMORY.md) (theory + mechanism implementation reference) and the [Memory System Overview](../MEMORY_SYSTEM_OVERVIEW.md) (composition, archive, vendor comparison).
 
@@ -696,9 +696,9 @@ The GMI integrates with RAG through persona-configurable hooks:
 - `retrievalAugmentor.retrieveContext()` runs the default runtime retrieval pipeline
 - `performPostTurnIngestion()` summarizes and embeds conversation turns
 
-When a host explicitly wires `QueryRouter.setUnifiedRetriever(...)`, plan-aware retrieval can run through `UnifiedRetriever` instead of the legacy dispatcher path. That path is real, but not the default bootstrap today.
+When a host explicitly wires `QueryRouter.setUnifiedRetriever(...)`, plan-aware retrieval can run through [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) instead of the legacy dispatcher path. That path is real, but not the default bootstrap today.
 
-Within the default QueryRouter path, `cacheResults` now provides in-memory `route()` result caching, and `verifyCitations` can attach `QueryResult.grounding` by running `CitationVerifier` over retrieved chunks when embeddings are available.
+Within the default QueryRouter path, `cacheResults` now provides in-memory `route()` result caching, and `verifyCitations` can attach `QueryResult.grounding` by running [`CitationVerifier`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/citation/CitationVerifier.ts) over retrieved chunks when embeddings are available.
 
 ### Vector Store Backends
 
@@ -806,7 +806,7 @@ Message types: `task_delegation`, `status_update`, `question`, `answer`, `findin
 
 ### Planning Engine
 
-`PlanningEngine` (`orchestration/planner/PlanningEngine.ts`) converts high-level goals into multi-step [`ExecutionPlan`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/IPlanningEngine.ts) objects using the ReAct (Reasoning and Acting) pattern. Supports plan generation, task decomposition, plan refinement, and autonomous plan-execute-reflect loops.
+[`PlanningEngine`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) (`orchestration/planner/PlanningEngine.ts`) converts high-level goals into multi-step [`ExecutionPlan`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/IPlanningEngine.ts) objects using the ReAct (Reasoning and Acting) pattern. Supports plan generation, task decomposition, plan refinement, and autonomous plan-execute-reflect loops.
 
 ### Human-in-the-Loop
 
@@ -852,7 +852,7 @@ See [Emergent Capabilities](../features/emergent-capabilities.md) for the full w
 
 The orchestration engine supports checkpointing for long-running workflows via [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts) (`orchestration/checkpoint/`). Checkpoints capture the full execution state (completed tasks, pending tasks, intermediate results) and support fork/resume semantics -- you can snapshot a workflow at any point and resume it later, or fork from a checkpoint to explore alternative execution paths.
 
-[`InMemoryCheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/InMemoryCheckpointStore.ts) ships as the default implementation; persistent stores can be plugged in via the `ICheckpointStore` interface.
+[`InMemoryCheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/InMemoryCheckpointStore.ts) ships as the default implementation; persistent stores can be plugged in via the [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts) interface.
 
 For details, see [Planning Engine](../orchestration/PLANNING_ENGINE.md), [HITL](../safety/HUMAN_IN_THE_LOOP.md), [Agency API](../orchestration/AGENCY_API.md), and [Agent Communication](./AGENT_COMMUNICATION.md).
 
@@ -864,7 +864,7 @@ For details, see [Planning Engine](../orchestration/PLANNING_ENGINE.md), [HITL](
 
 ### ITool Interface
 
-Every tool implements the `ITool` interface (`core/tools/ITool.ts`):
+Every tool implements the [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) interface (`core/tools/ITool.ts`):
 
 ```typescript
 interface ITool<TInput = any, TOutput = any> {
@@ -915,9 +915,9 @@ const weatherTool: ITool = {
 
 1. LLM emits a `tool_call` chunk with name and arguments
 2. `ToolOrchestrator` resolves the tool by name from its registry
-3. `ToolPermissionManager` checks persona capabilities and user subscription
-4. If `hasSideEffects` and HITL is enabled, `HumanInteractionManager` gates the execution
-5. `ToolExecutor` validates arguments against `inputSchema` and calls `execute()`
+3. [`ToolPermissionManager`](https://github.com/framersai/agentos/blob/master/src/core/tools/permissions/ToolPermissionManager.ts) checks persona capabilities and user subscription
+4. If `hasSideEffects` and HITL is enabled, [`HumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) gates the execution
+5. [`ToolExecutor`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolExecutor.ts) validates arguments against `inputSchema` and calls `execute()`
 6. Result is formatted as [`ToolCallResult`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts) and fed back to the LLM
 
 ### Capability Discovery
@@ -1003,7 +1003,7 @@ const domainRestrictionGuard: IGuardrailService = {
 };
 ```
 
-`ParallelGuardrailDispatcher` runs guardrails in two phases (sanitizers sequentially, classifiers in parallel). The safety runtime also includes `CircuitBreaker`, `CostGuard`, and `StuckDetector` in `safety/runtime/`.
+`ParallelGuardrailDispatcher` runs guardrails in two phases (sanitizers sequentially, classifiers in parallel). The safety runtime also includes [`CircuitBreaker`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts), [`CostGuard`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts), and [`StuckDetector`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/StuckDetector.ts) in `safety/runtime/`.
 
 For details, see [Safety Primitives](../safety/SAFETY_PRIMITIVES.md), [Creating Guardrails](../safety/CREATING_GUARDRAILS.md), and [Guardrails Usage](../safety/GUARDRAILS_USAGE.md).
 
@@ -1122,7 +1122,7 @@ When `observability.tracing.enabled` is true, AgentOS creates spans for:
 - LLM calls (`agentos.llm.completion`)
 - Memory retrieval (`agentos.memory.retrieve`)
 
-The `Tracer` class (`evaluation/observability/Tracer.ts`) wraps `@opentelemetry/api` and uses the configured tracer name (default `"@framers/agentos"`). Trace context is propagated through `AgentOSResponse` metadata when `includeTraceInResponses` is enabled, allowing client-side correlation.
+The [`Tracer`](https://github.com/framersai/agentos/blob/master/src/safety/evaluation/observability/Tracer.ts) class (`evaluation/observability/Tracer.ts`) wraps `@opentelemetry/api` and uses the configured tracer name (default `"@framers/agentos"`). Trace context is propagated through `AgentOSResponse` metadata when `includeTraceInResponses` is enabled, allowing client-side correlation.
 
 ### Metrics
 
@@ -1150,7 +1150,7 @@ The `emergent/` module enables agents to create new tools at runtime within safe
 
 ### SandboxedToolForge
 
-When `emergent: true` is set in `AgentOSConfig`, the agent gains access to the `forge_tool` meta-tool. The forge pipeline works as follows:
+When `emergent: true` is set in [`AgentOSConfig`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), the agent gains access to the `forge_tool` meta-tool. The forge pipeline works as follows:
 
 1. The agent generates JavaScript code for a new tool (name, description, input schema, implementation)
 2. [`SandboxedToolForge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SandboxedToolForge.ts) performs static validation, rejecting dangerous patterns (`eval`, `Function`, `process`, `require`, `import`, `child_process`, `fs.write*`)
@@ -1158,8 +1158,8 @@ When `emergent: true` is set in `AgentOSConfig`, the agent gains access to the `
    - Memory: observed as a heap delta only, not preemptively capped
    - Timeout: 5,000 ms default
    - API allowlist: only `fetch` (domain-restricted), `fs.readFile` (path-restricted, 1 MB max), `crypto` (hash/HMAC only)
-4. `EmergentJudge` evaluates the tool against safety criteria before permanent registration
-5. [`EmergentToolRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts) persists approved tools via `IStorageAdapter`
+4. [`EmergentJudge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentJudge.ts) evaluates the tool against safety criteria before permanent registration
+5. [`EmergentToolRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts) persists approved tools via [`IStorageAdapter`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts)
 
 ### Additional Emergent Tools
 
