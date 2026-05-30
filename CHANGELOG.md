@@ -1,3 +1,8 @@
+## <small>0.9.29 (2026-05-30)</small>
+
+* Merge branch 'master' of https://github.com/framersai/agentos ([8b54850223cbd04fd478254b56d25993ec943d2f](https://github.com/framersai/agentos/commit/8b54850223cbd04fd478254b56d25993ec943d2f))
+* fix(anthropic): rotate API key per retry + mark exhausted on 429 ([abf80a61f4bf42cc7ade30469b8d76bb2eef87ad](https://github.com/framersai/agentos/commit/abf80a61f4bf42cc7ade30469b8d76bb2eef87ad))
+
 ## <small>0.9.28 (2026-05-30)</small>
 
 * feat(api): forward tool_choice; hard-timeout guard for Anthropic requests; fix pg vector index names ([24941073a02d6c4edf22c136056bb4b25c99f076](https://github.com/framersai/agentos/commit/24941073a02d6c4edf22c136056bb4b25c99f076))
