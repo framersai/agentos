@@ -21,6 +21,7 @@ import {
   type HostLLMPolicy,
 } from './runtime/hostPolicy.js';
 import { adaptTools, type AdaptableToolInput } from './runtime/toolAdapter.js';
+import { runEmulatedToolLoop, type ToolMode } from './runtime/tool-emulation/index.js';
 import type { AgentOSUsageLedgerOptions } from './runtime/usageLedger.js';
 import { resolveDynamicToolCalls } from './runtime/dynamicToolCalling.js';
 import type { ITool, ToolExecutionContext } from '../core/tools/ITool.js';
@@ -259,6 +260,16 @@ export interface GenerateTextOptions {
    * Each tool-call round trip counts as one step. Defaults to `1`.
    */
   maxSteps?: number;
+  /**
+   * Tool-calling strategy. `'auto'` (default) uses native provider tool-calling,
+   * and on a tool-unsupported provider error falls back to a prompt-based shim
+   * (tool schemas rendered into the prompt, `<tool_call>` blocks parsed from the
+   * model's text). `'native'` forces native only. `'prompt'` forces the shim.
+   * The shim makes AgentOS tools work on models without native tool-use (e.g.
+   * the uncensored OpenRouter catalog). Shim roundtrips are capped by `maxSteps`
+   * (default 5 when unset on the shim path).
+   */
+  toolMode?: ToolMode;
   /** Sampling temperature forwarded to the provider (0-2 for most providers). */
   temperature?: number;
   /** Hard cap on output tokens. Provider-dependent default applies when omitted. */
@@ -1194,6 +1205,68 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         }
       }
 
+      // --- Prompt-based tool-calling shim (toolMode) ---
+      // For models without native tool-use, render tool schemas into the
+      // prompt and parse <tool_call> blocks out of the model's text. 'prompt'
+      // forces it up front; 'auto' tries native first and falls back on the
+      // provider's tool-unsupported error (see the catch after the loop).
+      const toolMode: ToolMode = opts.toolMode ?? 'auto';
+      const shimMaxRoundtrips = opts.maxSteps ?? 5;
+      const runShim = async (): Promise<GenerateTextResult> => {
+        const loopResult = await runEmulatedToolLoop({
+          tools: Array.from(toolMap.values()),
+          messages: messages.map((m) => ({
+            role: String(m.role),
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? ''),
+          })),
+          maxRoundtrips: shimMaxRoundtrips,
+          callModel: async (msgs) => {
+            const r = await provider.generateCompletion(resolved.modelId, msgs as any, {
+              temperature: opts.temperature,
+              maxTokens: opts.maxTokens,
+            } as any);
+            const cc = r.choices?.[0]?.message?.content;
+            return {
+              text: typeof cc === 'string' ? cc : ((cc as any)?.text ?? ''),
+              usage: { totalTokens: r.usage?.totalTokens ?? 0 },
+            };
+          },
+        });
+        const shimUsage: TokenUsage = {
+          ...totalUsage,
+          totalTokens: (totalUsage.totalTokens ?? 0) + loopResult.totalTokens,
+        };
+        metricUsage = shimUsage;
+        fireLlmUsageObserver({
+          provider: resolved.providerId,
+          model: resolved.modelId,
+          usage: shimUsage,
+          source: opts.source,
+          finishReason: loopResult.finishReason,
+          surface: 'generateText',
+        });
+        return {
+          provider: resolved.providerId,
+          model: resolved.modelId,
+          text: loopResult.text,
+          usage: shimUsage,
+          toolCalls: loopResult.toolCalls.map((c) => ({
+            name: c.name,
+            args: c.args,
+            ...(c.error ? { error: c.error } : {}),
+          })) as ToolCallRecord[],
+          finishReason: loopResult.finishReason,
+          plan: resolvedPlan,
+        };
+      };
+      const toolUnsupportedErr = (e: unknown): boolean =>
+        e instanceof Error &&
+        /support tool use|does not support (tools|function)|no endpoints found that support/i.test(e.message);
+      if (tools.length > 0 && toolMode === 'prompt') {
+        return await runShim();
+      }
+
+      try {
       for (let step = 0; step < maxSteps; step++) {
         // --- onBeforeGeneration hook ---
         let effectiveMessages = messages;
@@ -1456,6 +1529,14 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           finishReason: (choice.finishReason ?? 'stop') as GenerateTextResult['finishReason'],
           plan: resolvedPlan,
         };
+      }
+      } catch (loopErr) {
+        // 'auto' reactive fallback: when the provider rejects native tool-use,
+        // re-run the turn through the prompt-based shim.
+        if (tools.length > 0 && toolMode === 'auto' && toolUnsupportedErr(loopErr)) {
+          return await runShim();
+        }
+        throw loopErr;
       }
 
       const lastAssistant = messages.filter((m) => m.role === 'assistant').pop();
