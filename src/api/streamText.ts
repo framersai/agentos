@@ -13,6 +13,7 @@ import { attachUsageAttributes, toTurnMetricUsage } from './observability.js';
 import { fireLlmUsageObserver } from './observers.js';
 import { hostPolicyToRouteParams, mergeRequiredCapabilities } from './runtime/hostPolicy.js';
 import { adaptTools } from './runtime/toolAdapter.js';
+import { runEmulatedToolLoop, type ToolMode } from './runtime/tool-emulation/index.js';
 import {
   buildFallbackChain,
   createPlan,
@@ -343,6 +344,51 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
           messages.splice(insertIdx, 0, { role: 'system', content: planPrompt });
           rootSpan?.setAttribute('agentos.api.plan_steps', resolvedPlan.steps.length);
         }
+      }
+
+      // --- Prompt-based tool-calling shim (toolMode) ---
+      // 'prompt' forces the shim: buffer the tool roundtrips and emit the final
+      // answer as a single text part through the stream contract (spec decision
+      // #1 — replay from buffer, no extra model call). 'auto' streaming
+      // reactive-fallback is a documented follow-up; for streaming, callers that
+      // know the model lacks native tool-use pass toolMode:'prompt'.
+      const toolMode: ToolMode = opts.toolMode ?? 'auto';
+      if (tools.length > 0 && toolMode === 'prompt') {
+        const loopResult = await runEmulatedToolLoop({
+          tools: Array.from(toolMap.values()),
+          messages: messages.map((m) => ({
+            role: String(m.role),
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? ''),
+          })),
+          maxRoundtrips: opts.maxSteps ?? 5,
+          callModel: async (msgs) => {
+            const r = await provider.generateCompletion(resolved.modelId, msgs as any, {
+              temperature: opts.temperature,
+              maxTokens: opts.maxTokens,
+            } as any);
+            const cc = r.choices?.[0]?.message?.content;
+            return {
+              text: typeof cc === 'string' ? cc : ((cc as any)?.text ?? ''),
+              usage: { totalTokens: r.usage?.totalTokens ?? 0 },
+            };
+          },
+        });
+        usage.totalTokens = (usage.totalTokens ?? 0) + loopResult.totalTokens;
+        finalText = loopResult.text;
+        const shimToolCalls: ToolCallRecord[] = loopResult.toolCalls.map((c) => ({
+          name: c.name,
+          args: c.args,
+          ...(c.error ? { error: c.error } : {}),
+        }));
+        if (loopResult.text) {
+          const part: StreamPart = { type: 'text', text: loopResult.text };
+          parts.push(part);
+          yield part;
+        }
+        resolveText!(finalText);
+        resolveUsage!(usage);
+        resolveToolCalls!(shimToolCalls);
+        return;
       }
 
       for (let step = 0; step < maxSteps; step++) {
