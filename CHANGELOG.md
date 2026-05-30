@@ -1,3 +1,7 @@
+## <small>0.9.28 (2026-05-30)</small>
+
+* feat(api): forward tool_choice; hard-timeout guard for Anthropic requests; fix pg vector index names ([24941073a02d6c4edf22c136056bb4b25c99f076](https://github.com/framersai/agentos/commit/24941073a02d6c4edf22c136056bb4b25c99f076))
+
 ## <small>0.9.27 (2026-05-30)</small>
 
 * fix(tools): non-null provider assertion in streamText shim loop ([09d031ace322b4868f933b77621f31829f1885e4](https://github.com/framersai/agentos/commit/09d031ace322b4868f933b77621f31829f1885e4))
