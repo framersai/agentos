@@ -196,6 +196,7 @@ const publicationManifest = [
   siteDoc('features/citation-verification.md', 'features/citation-verification.md', 'Citation Verification', 'RAG & Retrieval', 4.5),
   agentosDoc('MULTIMODAL_RAG.md', 'features/multimodal-rag.md', 'Multimodal RAG (Image + Audio)', 'RAG & Retrieval', 5),
   agentosDoc('MEMORY_DOCUMENT_INGESTION.md', 'features/memory-document-ingestion.md', 'Document Ingestion', 'RAG & Retrieval', 6),
+  agentosDoc('INCREMENTAL_VECTOR_INGESTION.md', 'features/incremental-vector-ingestion.md', 'Incremental Vector Ingestion', 'RAG & Retrieval', 7),
 
   agentosDoc('GUARDRAILS_USAGE.md', 'features/guardrails.md', 'Guardrails', 'Guardrails & Safety', 1),
   staticDoc('features/guardrails-architecture.md', 'features/guardrails-architecture.md', 'Guardrails Architecture', 'Guardrails & Safety', 1.5),
@@ -278,6 +279,14 @@ const publicationManifest = [
     title: 'Skills (SKILL.md)',
     section: 'Skills',
     position: 2,
+  }),
+  entry({
+    sourceType: 'package-readme',
+    sourcePath: 'packages/agentos-skills/README.md',
+    dest: 'skills/agentos-skills.md',
+    title: '@framers/agentos-skills',
+    section: 'Skills',
+    position: 3,
   }),
   entry({
     sourceType: 'package-readme',

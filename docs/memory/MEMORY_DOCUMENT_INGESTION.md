@@ -223,8 +223,8 @@ await mem.ingest('./slides.pdf');
 
 ### How It Works
 
-1. Document loaders produce `ExtractedImage` objects (raw bytes + MIME type + optional page number).
-2. `MultimodalAggregator` receives the image batch and calls the `describeImage` function for each image lacking a caption.
+1. Document loaders produce [`ExtractedImage`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/facade/types.ts) objects (raw bytes + MIME type + optional page number).
+2. [`MultimodalAggregator`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/MultimodalAggregator.ts) receives the image batch and calls the `describeImage` function for each image lacking a caption.
 3. Images are processed in parallel via `Promise.allSettled` --- a single failed captioning attempt does not block the rest.
 4. Failed images retain their un-captioned state rather than propagating errors.
 5. Captions are stored in the `document_images.caption` column and indexed for text retrieval.
@@ -237,7 +237,7 @@ When no `describeImage` function is configured, the aggregator passes images thr
 
 ## URL Ingestion
 
-The `UrlLoader` fetches content from HTTP/HTTPS URLs and routes it through the appropriate document loader:
+The [`UrlLoader`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/io/ingestion/UrlLoader.ts) fetches content from HTTP/HTTPS URLs and routes it through the appropriate document loader:
 
 ```ts
 // Single URL
@@ -260,6 +260,8 @@ Every ingested document is tracked in the `documents` table with a SHA-256 `cont
 - If the content has changed, the old chunks are replaced with the new extraction.
 
 This makes it safe to re-run ingestion on the same directory without creating duplicates.
+
+For a flat vector collection without the cognitive-memory brain (doc citations, a help index, a product knowledge base), the same content-hash skip is a short recipe over [`IVectorStore`](https://github.com/framersai/agentos/blob/master/src/core/vector-store/IVectorStore.ts) directly. See [Incremental Vector Ingestion](./INCREMENTAL_VECTOR_INGESTION.md).
 
 ---
 

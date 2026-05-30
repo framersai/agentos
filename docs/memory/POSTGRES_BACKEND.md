@@ -174,7 +174,7 @@ Increase `poolSize` in the config, or reduce concurrent usage. The default of 10
 
 ## Postgres for the cognitive Brain (0.3.0+)
 
-Beyond the [`PostgresVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/PostgresVectorStore.ts), agentos 0.3.0+ runs the entire cognitive [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) on Postgres via three named factories. The `Brain` class is dialect-agnostic; the factory chooses the backend.
+Beyond the [`PostgresVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/PostgresVectorStore.ts), agentos 0.3.0+ runs the entire cognitive [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) on Postgres via three named factories. The [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) class is dialect-agnostic; the factory chooses the backend.
 
 ```ts
 import { Brain } from '@framers/agentos/memory';
@@ -235,3 +235,9 @@ await liveBrain.exportToSqlite('/tmp/alice-snapshot.sqlite');
 const forkBrain = await Brain.openPostgres(connStr, { brainId: 'alice-fork' });
 await forkBrain.importFromSqlite('/tmp/alice-snapshot.sqlite');
 ```
+
+---
+
+## See also
+
+- [Incremental Vector Ingestion](./INCREMENTAL_VECTOR_INGESTION.md): content-hash caching to keep a flat pgvector collection in sync, re-embedding only the chunks that changed.
