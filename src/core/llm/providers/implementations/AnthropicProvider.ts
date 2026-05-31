@@ -230,6 +230,12 @@ type AnthropicStreamEvent =
  *
  * Pricing verified against anthropic.com/pricing on 2026-04-16 (USD per 1M tokens).
  * Update when Anthropic publishes new rate cards.
+ *
+ * `outputTokenLimit` is the model's real max output ceiling, surfaced via
+ * getModelInfo for callers that want to size requests. It is informational —
+ * NOT the per-request default: when a caller omits `maxTokens`, the request
+ * falls back to `config.defaultMaxTokens`, not this value. Anthropic specs:
+ * Sonnet 4.x = 64K output, Opus 4.x = 32K.
  */
 const ANTHROPIC_MODELS: ModelInfo[] = [
   {
@@ -265,7 +271,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
     description: 'Optimal balance of intelligence, cost, and speed.',
     capabilities: ['chat', 'tool_use', 'vision_input'],
     contextWindowSize: 200000,
-    outputTokenLimit: 16000,
+    outputTokenLimit: 64000,
     pricePer1MTokensInput: 3,
     pricePer1MTokensOutput: 15,
     supportsStreaming: true,
@@ -278,7 +284,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
     description: 'Previous-generation Sonnet with same pricing as 4.6.',
     capabilities: ['chat', 'tool_use', 'vision_input'],
     contextWindowSize: 200000,
-    outputTokenLimit: 16000,
+    outputTokenLimit: 64000,
     pricePer1MTokensInput: 3,
     pricePer1MTokensOutput: 15,
     supportsStreaming: true,
@@ -319,7 +325,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
     description: 'Original Sonnet 4 snapshot.',
     capabilities: ['chat', 'tool_use', 'vision_input'],
     contextWindowSize: 200000,
-    outputTokenLimit: 16000,
+    outputTokenLimit: 64000,
     pricePer1MTokensInput: 3,
     pricePer1MTokensOutput: 15,
     supportsStreaming: true,
