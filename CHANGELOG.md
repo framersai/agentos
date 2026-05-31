@@ -1,3 +1,11 @@
+## <small>0.9.30 (2026-05-31)</small>
+
+* fix(api): size generateObject maxTokens from string .max() + correct stale Sonnet outputTokenLimit metadata ([3af26b8dc622f573357e4f2fd70045d54d5f4664](https://github.com/framersai/agentos/commit/3af26b8dc622f573357e4f2fd70045d54d5f4664))
+* schemaTokenEstimate: size string budgets from .max(), raise ceiling to 32k ([89ca01a1ecf042e8f4abe8ebf2d3d366dcb1b858](https://github.com/framersai/agentos/commit/89ca01a1ecf042e8f4abe8ebf2d3d366dcb1b858))
+* docs: update build attribution to Frame ([2d4470dd5b222a183d8365298be25b438bf533cb](https://github.com/framersai/agentos/commit/2d4470dd5b222a183d8365298be25b438bf533cb))
+* docs(rag): incremental vector ingestion guide + skills/agentos-skills publication entry ([57573573e8f13c91ecdbf6f527c129c135c5357e](https://github.com/framersai/agentos/commit/57573573e8f13c91ecdbf6f527c129c135c5357e))
+* chore(docs): linkify symbol references across guides ([b38f6bc9522e377b06de456aebf44e9306d24a02](https://github.com/framersai/agentos/commit/b38f6bc9522e377b06de456aebf44e9306d24a02))
+
 ## <small>0.9.29 (2026-05-30)</small>
 
 * Merge branch 'master' of https://github.com/framersai/agentos ([8b54850223cbd04fd478254b56d25993ec943d2f](https://github.com/framersai/agentos/commit/8b54850223cbd04fd478254b56d25993ec943d2f))
