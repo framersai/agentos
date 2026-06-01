@@ -35,6 +35,7 @@ import {
 } from '../IProvider';
 import { OpenAIProviderError } from '../errors/OpenAIProviderError';
 import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
+import { toOpenAiResponseFormat } from './openai-response-format-guard';
 // Assuming a fetch-like interface is available globally or polyfilled (e.g., node-fetch)
 // For Node.js, ensure 'node-fetch' is a dependency or use Node's built-in fetch from v18+.
 // import fetch, { RequestInit, Response as FetchResponse, AbortController } from 'node-fetch'; // Example for Node
@@ -669,7 +670,16 @@ export class OpenAIProvider implements IProvider {
     if (options.userId !== undefined) payload.user = options.userId;
     if (options.tools !== undefined) payload.tools = options.tools;
     if (options.toolChoice !== undefined) payload.tool_choice = options.toolChoice;
-    if (options.responseFormat !== undefined) payload.response_format = options.responseFormat;
+    // Coerce to an OpenAI-valid response_format, or drop it. agentos builds a
+    // provider-specific responseFormat for the PRIMARY provider and reuses it
+    // across the fallback chain; an Anthropic tool-marker / Gemini-internal
+    // object reaching OpenAI verbatim makes the API reject the request
+    // ("Missing required parameter: 'response_format.type'"). Mirrors the
+    // guard OpenRouterProvider already applies. See openai-response-format-guard.ts.
+    if (options.responseFormat !== undefined) {
+      const coerced = toOpenAiResponseFormat(options.responseFormat);
+      if (coerced !== undefined) payload.response_format = coerced;
+    }
     
     if (options.customModelParams) {
         Object.assign(payload, options.customModelParams);
