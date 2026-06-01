@@ -4,7 +4,7 @@ You can't operate an agent runtime in production without observability, and the 
 
 What AgentOS owns is the *emit side*: opt-in spans around turns and tool-result handling, opt-in counters and histograms for the operations worth measuring, optional trace-correlation in logs and streamed response metadata, and an optional path to export application logs as OTEL `LogRecord`s. All defaults are off. Turning them on is a single config change, and the runtime will surface to whatever exporter your host has wired (OTLP to Honeycomb, Tempo, Jaeger, Grafana Cloud — the runtime doesn't care, because your host SDK is what does the export).
 
-The implementation lives in [`src/evaluation/observability/`](https://github.com/framersai/agentos/tree/master/src/evaluation/observability) and uses [`@opentelemetry/api`](https://www.npmjs.com/package/@opentelemetry/api) directly — never bundled, always peer-dep-style imported, so your host SDK is the one and only OTEL provider in the process.
+The implementation lives in [`src/evaluation/observability/`](https://github.com/framerslab/agentos/tree/master/src/evaluation/observability) and uses [`@opentelemetry/api`](https://www.npmjs.com/package/@opentelemetry/api) directly — never bundled, always peer-dep-style imported, so your host SDK is the one and only OTEL provider in the process.
 
 ---
 
@@ -292,12 +292,12 @@ Common library choices:
 ### Distributed tracing foundations
 
 - Sigelman, B. H., Barroso, L. A., Burrows, M., Stephenson, P., Plakal, M., Beaver, D., Jaspan, S., & Shanbhag, C. (2010). *Dapper, a large-scale distributed systems tracing infrastructure.* Google Technical Report. — The original distributed-tracing paper that defined the span/trace abstractions used today. [Google Research](https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/)
-- Mace, J., Roelke, R., & Fonseca, R. (2015). *Pivot tracing: Dynamic causal monitoring for distributed systems.* SOSP 2015. — Causal monitoring methodology informing the trace-id propagation through [`AgentOSResponse`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts) metadata. [DOI](https://doi.org/10.1145/2815400.2815415)
+- Mace, J., Roelke, R., & Fonseca, R. (2015). *Pivot tracing: Dynamic causal monitoring for distributed systems.* SOSP 2015. — Causal monitoring methodology informing the trace-id propagation through [`AgentOSResponse`](https://github.com/framerslab/agentos/blob/master/src/api/types/AgentOSResponse.ts) metadata. [DOI](https://doi.org/10.1145/2815400.2815415)
 
 ### Logging
 
 - OpenTelemetry. (current). *OpenTelemetry logging specification.* — The bridge spec connecting `LogRecord` events to span context; AgentOS's optional `exportToOtel` log path follows it. [opentelemetry.io/docs/specs/otel/logs](https://opentelemetry.io/docs/specs/otel/logs/)
-- Pino contributors. (current). *Pino: Very low overhead Node.js logger.* — The logger AgentOS wraps via [`PinoLogger`](https://github.com/framersai/agentos/blob/master/src/core/logging/PinoLogger.ts); chosen for its sub-microsecond per-line cost in hot paths. [GitHub](https://github.com/pinojs/pino)
+- Pino contributors. (current). *Pino: Very low overhead Node.js logger.* — The logger AgentOS wraps via [`PinoLogger`](https://github.com/framerslab/agentos/blob/master/src/core/logging/PinoLogger.ts); chosen for its sub-microsecond per-line cost in hot paths. [GitHub](https://github.com/pinojs/pino)
 
 ### Implementation references
 

@@ -4,7 +4,7 @@
 **Draft v1.0** - December 2024
 
 ## Summary
-This RFC establishes standards for community-contributed extensions to the AgentOS ecosystem, leveraging the existing [`ExtensionManager`](https://github.com/framersai/agentos/blob/master/src/extensions/ExtensionManager.ts) and [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts) architecture.
+This RFC establishes standards for community-contributed extensions to the AgentOS ecosystem, leveraging the existing [`ExtensionManager`](https://github.com/framerslab/agentos/blob/master/src/extensions/ExtensionManager.ts) and [`ExtensionPack`](https://github.com/framerslab/agentos/blob/master/src/extensions/manifest.ts) architecture.
 
 ## Terminology
 - **Extension**: A discrete unit of functionality (tool, guardrail, workflow, etc.)
@@ -29,7 +29,7 @@ voice-chat-assistant/
 ```
 
 ### External Repository
-Repository: `github.com/framersai/agentos-extensions`
+Repository: `github.com/framerslab/agentos-extensions`
 - Community-driven with PR review process
 - MIT licensed
 - Automated CI/CD for publishing to npm
@@ -81,7 +81,7 @@ packages/ext-{name}/
   "categories": ["productivity", "research"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/framersai/agentos-extensions"
+    "url": "https://github.com/framerslab/agentos-extensions"
   },
   "extensions": [
     {
@@ -529,13 +529,13 @@ npx create-agentos-extension my-extension
 - [AgentOS Architecture](./ARCHITECTURE.md)
 - [ITool Interface](../src/core/tools/ITool.ts)
 - [ExtensionManager](../src/extensions/ExtensionManager.ts)
-- [Example Extensions](https://github.com/framersai/agentos-extensions)
+- [Example Extensions](https://github.com/framerslab/agentos-extensions)
 
 ## Appendix: Quick Start Template
 
 ```bash
 # Clone template
-git clone https://github.com/framersai/agentos-extensions
+git clone https://github.com/framerslab/agentos-extensions
 cd packages/ext-template
 
 # Rename and configure

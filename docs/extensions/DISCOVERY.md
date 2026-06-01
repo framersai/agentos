@@ -160,7 +160,7 @@ const descriptor: CapabilityDescriptor = {
 
 ## CapabilityGraph Relationships
 
-The [`CapabilityGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) tracks relationships between capabilities using a
+The [`CapabilityGraph`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) tracks relationships between capabilities using a
 graphology graph. Four edge types:
 
 | Edge Type | Meaning | Example |
@@ -195,7 +195,7 @@ console.log(related);
 ## CAPABILITY.yaml Format
 
 Place a `CAPABILITY.yaml` in any directory under `~/.agentos/capabilities/`
-to register a custom capability. The [`CapabilityManifestScanner`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) hot-reloads
+to register a custom capability. The [`CapabilityManifestScanner`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) hot-reloads
 on file changes.
 
 ```yaml

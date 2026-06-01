@@ -125,7 +125,7 @@ console.log(usage.totalTokens);
 forms:
 
 - A named high-level tool map
-- An [`ExternalToolRegistry`](https://github.com/framersai/agentos/blob/master/src/api/runtime/externalToolRegistry.ts) (`Record`, `Map`, or iterable)
+- An [`ExternalToolRegistry`](https://github.com/framerslab/agentos/blob/master/src/api/runtime/externalToolRegistry.ts) (`Record`, `Map`, or iterable)
 - A prompt-only `ToolDefinitionForLLM[]`
 
 External registries are exposed to the model and executed when called.
@@ -221,9 +221,9 @@ Use:
 See [Agency API](./AGENCY_API.md) and [Streaming Semantics](./STREAMING_SEMANTICS.md)
 for the full contract.
 
-## [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
+## [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
 
-Use [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you want grounded answers over a local markdown corpus
+Use [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you want grounded answers over a local markdown corpus
 without booting the full AgentOS runtime.
 
 ```ts
@@ -246,7 +246,7 @@ console.log(result.fallbacksUsed);
 await router.close();
 ```
 
-`router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot that tells
+`router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot that tells
 you what is actually live in the current host:
 
 - corpus size: `configuredPathCount`, `chunkCount`, `topicCount`, `sourceCount`
@@ -306,8 +306,8 @@ console.log(result.videos[0]?.url);
 
 ## `analyzeVideo()`
 
-`analyzeVideo()` auto-creates a [`VisionPipeline`](https://github.com/framersai/agentos/blob/master/src/io/vision/VisionPipeline.ts), uses the structured
-[`VideoAnalyzer`](https://github.com/framersai/agentos/blob/master/src/io/media/video/VideoAnalyzer.ts) pipeline under the hood, and auto-wires STT when a supported
+`analyzeVideo()` auto-creates a [`VisionPipeline`](https://github.com/framerslab/agentos/blob/master/src/io/vision/VisionPipeline.ts), uses the structured
+[`VideoAnalyzer`](https://github.com/framerslab/agentos/blob/master/src/io/media/video/VideoAnalyzer.ts) pipeline under the hood, and auto-wires STT when a supported
 speech provider credential is available (`OPENAI_API_KEY`, `DEEPGRAM_API_KEY`,
 `ASSEMBLYAI_API_KEY`, or Azure Speech env vars).
 
@@ -514,7 +514,7 @@ console.log(await session.usage());
 ```
 
 `agent({ tools })` accepts the same three forms as `generateText({ tools })`
-and `streamText({ tools })`: named tool maps, [`ExternalToolRegistry`](https://github.com/framersai/agentos/blob/master/src/api/runtime/externalToolRegistry.ts)
+and `streamText({ tools })`: named tool maps, [`ExternalToolRegistry`](https://github.com/framerslab/agentos/blob/master/src/api/runtime/externalToolRegistry.ts)
 (`Record`, `Map`, or iterable), and prompt-only `ToolDefinitionForLLM[]`.
 
 ### Per-agent identity via SOUL.md
@@ -532,15 +532,15 @@ agent({ provider: 'openai', soul: './personas/aria.soul.md' });
 agent({ provider: 'openai', soul: { content: SOUL_MARKDOWN_STRING } });
 ```
 
-The HEXACO frontmatter (`hexaco: { honestyHumility, emotionality, ... }`) flows into the same `PersonaDriftMechanism` and [`PersonaOverlayManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) as inline `personality:` config. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
+The HEXACO frontmatter (`hexaco: { honestyHumility, emotionality, ... }`) flows into the same `PersonaDriftMechanism` and [`PersonaOverlayManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) as inline `personality:` config. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
 
 Runnable examples in the package source:
 
-- [`packages/agentos/examples/high-level-api.mjs`](https://github.com/framersai/agentos/blob/master/examples/high-level-api.mjs)
-- [`packages/agentos/examples/generate-image.mjs`](https://github.com/framersai/agentos/blob/master/examples/generate-image.mjs)
-- [`packages/agentos/examples/agentos-config-tools.mjs`](https://github.com/framersai/agentos/blob/master/examples/agentos-config-tools.mjs)
+- [`packages/agentos/examples/high-level-api.mjs`](https://github.com/framerslab/agentos/blob/master/examples/high-level-api.mjs)
+- [`packages/agentos/examples/generate-image.mjs`](https://github.com/framerslab/agentos/blob/master/examples/generate-image.mjs)
+- [`packages/agentos/examples/agentos-config-tools.mjs`](https://github.com/framerslab/agentos/blob/master/examples/agentos-config-tools.mjs)
 
-## Full runtime: [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts)
+## Full runtime: [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts)
 
 ```ts
 import { AgentOS, AgentOSResponseChunkType } from '@framers/agentos';
@@ -581,13 +581,13 @@ for await (const chunk of agent.processRequest({
 helpers: named tool maps, `ExternalToolRegistry` (`Record`, `Map`, or
 iterable), and prompt-only `ToolDefinitionForLLM[]`. AgentOS normalizes those
 inputs during `initialize(...)` and registers them into the shared
-[`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts), so direct `processRequest()` turns can plan against and
+[`ToolOrchestrator`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ToolOrchestrator.ts), so direct `processRequest()` turns can plan against and
 execute them without helper wrappers. If a config-registered tool collides with
 an extension or pack tool name, the config tool wins at registration time.
 
 If those external tool calls are AgentOS-registered tools, prefer
 `processRequestWithRegisteredTools(...)`. It executes the registered tools with
-the correct live-turn [`ToolExecutionContext`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) and resumes the stream for you:
+the correct live-turn [`ToolExecutionContext`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts) and resumes the stream for you:
 
 ```ts
 import {
@@ -644,7 +644,7 @@ stream with `resumeExternalToolRequest(...)`:
 
 If the pending tool calls are AgentOS-registered tools, prefer
 `resumeExternalToolRequestWithRegisteredTools(...)`. It executes the registered
-tools with the correct resume-time [`ToolExecutionContext`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) and then resumes the
+tools with the correct resume-time [`ToolExecutionContext`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts) and then resumes the
 stream for you.
 
 ```ts
@@ -691,7 +691,7 @@ original process exits.
 ## Guidance
 
 - Show high-level examples first in README and landing guides.
-- Keep low-level [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) examples in architecture, advanced usage, extensions, workflows, and runtime-control docs.
+- Keep low-level [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts) examples in architecture, advanced usage, extensions, workflows, and runtime-control docs.
 - Document both layers explicitly. They are complementary, not competing.
 - Keep `generateImage()` provider-agnostic at the API boundary, but expose provider-specific knobs through `providerOptions` when needed.
 - Do not force downstream libraries to adopt `agent()` unless the helper reaches feature parity with their runtime needs.

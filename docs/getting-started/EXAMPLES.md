@@ -135,13 +135,13 @@ const report = await researchTeam.generate(
 console.log(report.text);
 ```
 
-> **Tools must be [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) instances, not bare names.** Agencies don't auto-resolve string identifiers like `'web_search'` to registered tools; pass the actual object the agent should call. See [Agent Memory Tools](/features/memory-operations#agent-memory-tools) for the contract.
+> **Tools must be [`ITool`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts) instances, not bare names.** Agencies don't auto-resolve string identifiers like `'web_search'` to registered tools; pass the actual object the agent should call. See [Agent Memory Tools](/features/memory-operations#agent-memory-tools) for the contract.
 
 ---
 
 ## 3. Content Pipeline
 
-Review loop with social posting on approval. The high-level path is `agency({ strategy: 'sequential' })` — each agent's output feeds the next, with [`hitl`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) gating the human-approval step. Use this when every step is an LLM/GMI call. Reach for the lower-level `workflow()` DSL only when you need explicit graph control, branches, or non-LLM tool steps wired into the same graph (see [workflow() DSL](/features/workflow-dsl) for that path). For the full [`hitl`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) surface (5 triggers, 6 handler factories, judge + fallback), see the [Human-in-the-Loop guide](/features/human-in-the-loop).
+Review loop with social posting on approval. The high-level path is `agency({ strategy: 'sequential' })` — each agent's output feeds the next, with [`hitl`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) gating the human-approval step. Use this when every step is an LLM/GMI call. Reach for the lower-level `workflow()` DSL only when you need explicit graph control, branches, or non-LLM tool steps wired into the same graph (see [workflow() DSL](/features/workflow-dsl) for that path). For the full [`hitl`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) surface (5 triggers, 6 handler factories, judge + fallback), see the [Human-in-the-Loop guide](/features/human-in-the-loop).
 
 ```typescript
 import { agency } from '@framers/agentos';
@@ -197,7 +197,7 @@ const posted = await postToTwitterAndLinkedIn(result.text);
 console.log('Posted:', posted);
 ```
 
-> **When to reach for `workflow()` or [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) instead.** `agency({ strategy: 'sequential' })` covers LLM-driven content pipelines cleanly. Switch to the lower-level [`workflow()` DSL](/features/workflow-dsl) when you need a typed DAG with non-LLM `tool:` nodes wired into the same graph, branches based on `state.artifacts`, or reusable sub-graphs. Switch to [`AgentGraph`](/features/agent-graph) when you need explicit conditional edges or programmatic graph construction.
+> **When to reach for `workflow()` or [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) instead.** `agency({ strategy: 'sequential' })` covers LLM-driven content pipelines cleanly. Switch to the lower-level [`workflow()` DSL](/features/workflow-dsl) when you need a typed DAG with non-LLM `tool:` nodes wired into the same graph, branches based on `state.artifacts`, or reusable sub-graphs. Switch to [`AgentGraph`](/features/agent-graph) when you need explicit conditional edges or programmatic graph construction.
 
 ---
 
@@ -573,10 +573,10 @@ await publishPost('How vector databases enable semantic search in AI application
 
 ## 9. Runtime-Configured Tools
 
-Direct [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) initialization with runtime-configured tools via
+Direct [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts) initialization with runtime-configured tools via
 `createTestAgentOSConfig({ tools })`.
 
-Runnable source: [`packages/agentos/examples/agentos-config-tools.mjs`](https://github.com/framersai/agentos/blob/master/examples/agentos-config-tools.mjs)
+Runnable source: [`packages/agentos/examples/agentos-config-tools.mjs`](https://github.com/framerslab/agentos/blob/master/examples/agentos-config-tools.mjs)
 
 ```typescript
 import { AgentOS } from '@framers/agentos';
@@ -674,14 +674,14 @@ console.log(await stream.text);
 console.log(await stream.agentCalls);
 ```
 
-Runnable source: [`packages/agentos/examples/agency-streaming.mjs`](https://github.com/framersai/agentos/blob/master/examples/agency-streaming.mjs)
+Runnable source: [`packages/agentos/examples/agency-streaming.mjs`](https://github.com/framerslab/agentos/blob/master/examples/agency-streaming.mjs)
 
 ---
 
 ## 11. Query Router
 
 Tier classification, retrieval routing, and fallback metadata from the
-standalone [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts).
+standalone [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts).
 
 ```typescript
 import { QueryRouter } from '@framers/agentos';
@@ -709,14 +709,14 @@ console.log(result.sources);
 await router.close();
 ```
 
-Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router.mjs)
+Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router.mjs)
 
 ---
 
 ## 12. Query Router Host Hooks
 
 Host-provided graph expansion, reranking, and deep research hooks layered onto
-the same [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) interface.
+the same [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) interface.
 
 ```typescript
 import { QueryRouter } from '@framers/agentos';
@@ -737,13 +737,13 @@ await router.init();
 console.log(router.getCorpusStats()); // runtime modes become active
 ```
 
-Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router-host-hooks.mjs)
+Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router-host-hooks.mjs)
 
 ---
 
 ## 13. Per-Agent Identity via SOUL.md
 
-Load identity, voice, hard limits, and HEXACO scores from a markdown workspace. The runtime injects `SOUL.md` body as the first system message and parses YAML frontmatter into [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) fields. Compatible with the [aaronjmars/soul.md](https://github.com/aaronjmars/soul.md) and OpenClaw conventions.
+Load identity, voice, hard limits, and HEXACO scores from a markdown workspace. The runtime injects `SOUL.md` body as the first system message and parses YAML frontmatter into [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) fields. Compatible with the [aaronjmars/soul.md](https://github.com/aaronjmars/soul.md) and OpenClaw conventions.
 
 Workspace layout (per agent):
 
@@ -815,7 +815,7 @@ const ephemeral = agent({
 const reply = await aria.generate('I need help with my invoice.');
 ```
 
-The HEXACO frontmatter flows into the same `PersonaDriftMechanism` and [`PersonaOverlayManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) as inline `personality:` config — both paths produce identical runtime behavior. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
+The HEXACO frontmatter flows into the same `PersonaDriftMechanism` and [`PersonaOverlayManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) as inline `personality:` config — both paths produce identical runtime behavior. See [SOUL_FILES.md](../SOUL_FILES.md) for the full 6-file workspace spec.
 
 ---
 
@@ -892,14 +892,14 @@ history persists; the shared cognitive memory store, the shared RAG
 context, and any runtime-spawned specialists reset on every turn. See
 [Agency API: Memory and RAG](/features/agency-api#memory-and-rag) for
 the full scope rules and the cross-turn workaround using a hand-wired
-[`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) and [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts).
+[`Brain`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) and [`AgencyMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts).
 
 The companion runnable file
-[`examples/agency-shared-memory.mjs`](https://github.com/framersai/agentos/blob/master/examples/agency-shared-memory.mjs)
+[`examples/agency-shared-memory.mjs`](https://github.com/framerslab/agentos/blob/master/examples/agency-shared-memory.mjs)
 runs this exact agency against the OpenAI API. Diff it against
-[`examples/single-agent-briefing.mjs`](https://github.com/framersai/agentos/blob/master/examples/single-agent-briefing.mjs)
+[`examples/single-agent-briefing.mjs`](https://github.com/framerslab/agentos/blob/master/examples/single-agent-briefing.mjs)
 (the single-`agent()` baseline) and
-[`examples/emergent-hierarchical-spawning.mjs`](https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs)
+[`examples/emergent-hierarchical-spawning.mjs`](https://github.com/framerslab/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs)
 (team + runtime synthesis) to see the three rungs of the progression.
 
 ---
@@ -962,7 +962,7 @@ Enable the emergent subsystem so the agent can forge new tools, adapt its own
 personality, and manage its skill set at runtime. Guard the mutation surface
 with `maxDeltaPerSession` and skill allowlists.
 
-> **Use `agency()` or `new AgentOS()` — not `agent()`.** Emergent tooling requires the full runtime that initializes [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but emits a `[AgentOS] agent() accepted config that requires the full AgentOS runtime` warning and does not activate `forge_tool` on its own.
+> **Use `agency()` or `new AgentOS()` — not `agent()`.** Emergent tooling requires the full runtime that initializes [`ToolOrchestrator`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) with emergent support. The lightweight `agent()` helper accepts `emergent: true` for config compatibility but emits a `[AgentOS] agent() accepted config that requires the full AgentOS runtime` warning and does not activate `forge_tool` on its own.
 
 ```typescript
 import { agency } from '@framers/agentos';
@@ -1015,22 +1015,22 @@ npx tsx examples/<file>.mjs
 
 | File | Description | Key APIs |
 |------|-------------|----------|
-| [`high-level-api.mjs`](../../examples/high-level-api.mjs) | One-shot text, streaming, image generation, agent sessions | `generateText`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts), `generateImage`, [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts) |
-| [`single-agent-briefing.mjs`](../../examples/single-agent-briefing.mjs) | Single-agent baseline before agency. One brain, no team, no shared state. | [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts), `.generate()` |
-| [`agency-shared-memory.mjs`](../../examples/agency-shared-memory.mjs) | Three agents share one cognitive memory store and one RAG corpus across a sequential run | [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), `memory: { shared: true }`, `rag: { ... }` |
-| [`emergent-hierarchical-spawning.mjs`](../../examples/emergent-hierarchical-spawning.mjs) | Hierarchical agency that mints a specialist at runtime when the static roster falls short | [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), `emergent`, `spawn_specialist`, [`EmergentAgentJudge`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentAgentJudge.ts) |
-| [`agency-graph.mjs`](../../examples/agency-graph.mjs) | Multi-agent agency with graph strategy | [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts), graph edges, parallel execution |
+| [`high-level-api.mjs`](../../examples/high-level-api.mjs) | One-shot text, streaming, image generation, agent sessions | `generateText`, [`streamText`](https://github.com/framerslab/agentos/blob/master/src/api/streamText.ts), `generateImage`, [`agent`](https://github.com/framerslab/agentos/blob/master/src/api/agent.ts) |
+| [`single-agent-briefing.mjs`](../../examples/single-agent-briefing.mjs) | Single-agent baseline before agency. One brain, no team, no shared state. | [`agent`](https://github.com/framerslab/agentos/blob/master/src/api/agent.ts), `.generate()` |
+| [`agency-shared-memory.mjs`](../../examples/agency-shared-memory.mjs) | Three agents share one cognitive memory store and one RAG corpus across a sequential run | [`agency`](https://github.com/framerslab/agentos/blob/master/src/api/agency.ts), `memory: { shared: true }`, `rag: { ... }` |
+| [`emergent-hierarchical-spawning.mjs`](../../examples/emergent-hierarchical-spawning.mjs) | Hierarchical agency that mints a specialist at runtime when the static roster falls short | [`agency`](https://github.com/framerslab/agentos/blob/master/src/api/agency.ts), `emergent`, `spawn_specialist`, [`EmergentAgentJudge`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/EmergentAgentJudge.ts) |
+| [`agency-graph.mjs`](../../examples/agency-graph.mjs) | Multi-agent agency with graph strategy | [`agency`](https://github.com/framerslab/agentos/blob/master/src/api/agency.ts), graph edges, parallel execution |
 | [`agency-streaming.mjs`](../../examples/agency-streaming.mjs) | Streaming agency output with real-time chunks | `agency`, `onChunk` callbacks |
-| [`agent-graph.mjs`](../../examples/agent-graph.mjs) | AgentGraph runtime with typed nodes and edges | [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), node definitions, edge routing |
-| [`agent-communication-bus.mjs`](../../examples/agent-communication-bus.mjs) | Inter-agent messaging via communication bus | [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts), pub/sub topics |
-| [`workflow-dsl.mjs`](../../examples/workflow-dsl.mjs) | Declarative workflow definitions | [`workflow`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts), sequential/parallel/conditional steps |
-| [`mission-api.mjs`](../../examples/mission-api.mjs) | Self-expanding mission orchestration with planner | [`mission`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/MissionBuilder.ts), goal decomposition, fact-checking |
+| [`agent-graph.mjs`](../../examples/agent-graph.mjs) | AgentGraph runtime with typed nodes and edges | [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), node definitions, edge routing |
+| [`agent-communication-bus.mjs`](../../examples/agent-communication-bus.mjs) | Inter-agent messaging via communication bus | [`AgentCommunicationBus`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts), pub/sub topics |
+| [`workflow-dsl.mjs`](../../examples/workflow-dsl.mjs) | Declarative workflow definitions | [`workflow`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts), sequential/parallel/conditional steps |
+| [`mission-api.mjs`](../../examples/mission-api.mjs) | Self-expanding mission orchestration with planner | [`mission`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/MissionBuilder.ts), goal decomposition, fact-checking |
 | [`multi-agent-workflow.mjs`](../../examples/multi-agent-workflow.mjs) | Coordinated multi-agent pipeline with handoffs | Multi-agent, handoff protocol |
 | [`query-router.mjs`](../../examples/query-router.mjs) | Intent-based routing to specialized agents | `QueryRouter`, route definitions |
 | [`query-router-host-hooks.mjs`](../../examples/query-router-host-hooks.mjs) | Query router with host lifecycle hooks | `QueryRouter`, `onRoute`, `onFallback` hooks |
 | [`generate-image.mjs`](../../examples/generate-image.mjs) | Image generation across providers | `generateImage`, provider selection |
-| [`agentos-config-tools.mjs`](../../examples/agentos-config-tools.mjs) | Full AgentOS runtime with tool registration | [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), `processRequest`, custom tools |
-| [`schema-on-demand-local-module.mjs`](../../examples/schema-on-demand-local-module.mjs) | Dynamic extension loading from local modules | [`createCuratedManifest`](https://github.com/framersai/agentos/blob/master/src/core/types/vendor.d.ts), lazy imports |
+| [`agentos-config-tools.mjs`](../../examples/agentos-config-tools.mjs) | Full AgentOS runtime with tool registration | [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts), `processRequest`, custom tools |
+| [`schema-on-demand-local-module.mjs`](../../examples/schema-on-demand-local-module.mjs) | Dynamic extension loading from local modules | [`createCuratedManifest`](https://github.com/framerslab/agentos/blob/master/src/core/types/vendor.d.ts), lazy imports |
 
 ---
 

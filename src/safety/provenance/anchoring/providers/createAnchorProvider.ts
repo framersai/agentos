@@ -51,7 +51,7 @@ export function registerAnchorProviderFactory(
  * The `@framers/agentos-ext-anchor-providers` extension package provides
  * a `registerExtensionProviders()` function that registers all curated external providers.
  *
- * @see https://github.com/framersai/agentos-extensions/tree/master/registry/curated/provenance/anchor-providers
+ * @see https://github.com/framerslab/agentos-extensions/tree/master/registry/curated/provenance/anchor-providers
  */
 export function createAnchorProvider(target?: AnchorTarget): AnchorProvider {
   if (!target || target.type === 'none') {

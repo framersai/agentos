@@ -2,7 +2,7 @@
 
 Hands-on walkthrough of AgentOS orchestration — from single-node graphs to multi-agent missions with voice, memory, and checkpointing.
 
-All three APIs ([`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, `mission()`) compile to the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) IR and run on the same [`GraphRuntime`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts). You can compose them freely — a mission can embed a workflow as a subgraph step; a graph can invoke a compiled workflow as a node.
+All three APIs ([`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, `mission()`) compile to the same [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) IR and run on the same [`GraphRuntime`](https://github.com/framerslab/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts). You can compose them freely — a mission can embed a workflow as a subgraph step; a graph can invoke a compiled workflow as a node.
 
 ```mermaid
 graph LR
@@ -22,7 +22,7 @@ graph LR
 
 ## AgentGraph — Full Graph Builder
 
-Use [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need cycles, complex conditional routing, subgraph composition, or fine-grained control over graph topology.
+Use [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need cycles, complex conditional routing, subgraph composition, or fine-grained control over graph topology.
 
 ### Minimal Example
 
@@ -187,7 +187,7 @@ gmiNode(
 )
 ```
 
-**Execution modes for [`gmiNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts):**
+**Execution modes for [`gmiNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts):**
 
 | Mode | Behavior |
 |------|----------|
@@ -661,7 +661,7 @@ YAML workflows support the full feature set — branching, parallelism, memory, 
 | The agent to figure out its own steps | `mission()` | Tree of Thought planning, self-expansion |
 | Multiple specialized agents coordinating | `agency()` | Strategy-based multi-agent (debate, pipeline, supervisor) |
 | One-off LLM call | `generateText()` / `streamText()` | No graph overhead, direct provider call |
-| Voice conversation flow | `AgentGraph` + [`voiceNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/VoiceNodeBuilder.ts) | Full IVR support with barge-in and hangup handling |
+| Voice conversation flow | `AgentGraph` + [`voiceNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/VoiceNodeBuilder.ts) | Full IVR support with barge-in and hangup handling |
 | Cost-bounded pipeline | `workflow()` | Single-turn GMI, no runaway loops |
 | Prototype → production | `mission()` → `AgentGraph` | Start with a goal, extract the generated IR, hand-tune |
 
@@ -672,7 +672,7 @@ YAML workflows support the full feature set — branching, parallelism, memory, 
 - [AgentGraph](/features/agent-graph) — Complete API reference, all node/edge types, subgraph patterns
 - [workflow() DSL](/features/workflow-dsl) — Sequential pipelines, branching, parallel execution
 - [mission() API](/features/mission-api) — Intent-driven orchestration, planners, anchors, autonomy
-- [Checkpointing](/features/checkpointing) — [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts), resume semantics, time-travel
+- [Checkpointing](/features/checkpointing) — [`ICheckpointStore`](https://github.com/framerslab/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts), resume semantics, time-travel
 - [Unified Orchestration](/features/unified-orchestration) — Shared IR, five differentiators, architecture
 - [Human-in-the-Loop](/features/human-in-the-loop) — HITL patterns, approval workflows, step-up auth
 - [Voice Pipeline](/features/voice-pipeline) — STT/TTS providers, VAD, telephony integration

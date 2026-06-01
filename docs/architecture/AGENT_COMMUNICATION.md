@@ -5,9 +5,9 @@ keywords: [agent communication bus, multi-agent messaging, pub/sub agents, agent
 
 # AgentOS Agent Communication Bus
 
-> **Live run**: side-by-side code + captured bus traffic (delegation + handoff between two GMIs) on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/agent-communication-bus.mjs`](https://github.com/framersai/agentos/blob/master/examples/agent-communication-bus.mjs).
+> **Live run**: side-by-side code + captured bus traffic (delegation + handoff between two GMIs) on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/agent-communication-bus.mjs`](https://github.com/framerslab/agentos/blob/master/examples/agent-communication-bus.mjs).
 
-The [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts) is the inter-agent messaging primitive for AgentOS agencies. Agents in the same agency share a memory layer, a runtime, and a tool catalog, but cross-agent task transfer, query/response, and topic-based publishing require explicit routing. The bus provides routing rules, subscription filters, retry-on-failure semantics, and a replayable message history. It supports six message patterns over three internal layers, exposed via one API.
+The [`AgentCommunicationBus`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts) is the inter-agent messaging primitive for AgentOS agencies. Agents in the same agency share a memory layer, a runtime, and a tool catalog, but cross-agent task transfer, query/response, and topic-based publishing require explicit routing. The bus provides routing rules, subscription filters, retry-on-failure semantics, and a replayable message history. It supports six message patterns over three internal layers, exposed via one API.
 
 | Pattern | Use it for |
 | --- | --- |
@@ -70,8 +70,8 @@ Four-tier priority: `low` < `normal` < `high` < `urgent`
 ### Error Handling
 
 - Handler errors are caught and logged, other handlers still execute
-- No subscribers: Returns [`DeliveryStatus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/IAgentCommunicationBus.ts) with status `'failed'`
-- Request-response timeout: Returns [`AgentResponse`](https://github.com/framersai/agentos/blob/master/src/agents/agency/IAgentCommunicationBus.ts) with status `'timeout'` (default 30s)
+- No subscribers: Returns [`DeliveryStatus`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/IAgentCommunicationBus.ts) with status `'failed'`
+- Request-response timeout: Returns [`AgentResponse`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/IAgentCommunicationBus.ts) with status `'timeout'` (default 30s)
 
 ## Message Types
 

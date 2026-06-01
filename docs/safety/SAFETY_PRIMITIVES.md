@@ -37,7 +37,7 @@ All six layers are independent. Use any subset. Wire them all into one chain via
 
 ## CircuitBreaker
 
-Three-state (closed -> open -> half-open) pattern wrapping any async operation. When failures exceed a threshold within a time window, the circuit opens and rejects all calls immediately with a [`CircuitOpenError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts). After a cooldown period, it transitions to half-open and allows probe calls through. If probes succeed, it closes again.
+Three-state (closed -> open -> half-open) pattern wrapping any async operation. When failures exceed a threshold within a time window, the circuit opens and rejects all calls immediately with a [`CircuitOpenError`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts). After a cooldown period, it transitions to half-open and allows probe calls through. If probes succeed, it closes again.
 
 ### Config
 
@@ -81,9 +81,9 @@ const stats = breaker.getStats();
 
 ## LLMProviderHealthRegistry
 
-A status-aware, process-lifetime memory of LLM provider health, keyed by `providerId`. Wired into [`generateText`](https://github.com/framersai/agentos/blob/master/src/api/generateText.ts) and [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts) so the next caller doesn't pay a full TLS round-trip to rediscover a provider that just returned `402 Insufficient Credits` or `401 Invalid API key`.
+A status-aware, process-lifetime memory of LLM provider health, keyed by `providerId`. Wired into [`generateText`](https://github.com/framerslab/agentos/blob/master/src/api/generateText.ts) and [`streamText`](https://github.com/framerslab/agentos/blob/master/src/api/streamText.ts) so the next caller doesn't pay a full TLS round-trip to rediscover a provider that just returned `402 Insufficient Credits` or `401 Invalid API key`.
 
-The plain [`CircuitBreaker`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) above uses a single failure-threshold + cooldown pair per instance — fine for one-off operations. The router needs **per-error-class** behavior: open immediately on a payment or auth failure, but require a streak before tripping on a 429 or 5xx. This is what the registry adds.
+The plain [`CircuitBreaker`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) above uses a single failure-threshold + cooldown pair per instance — fine for one-off operations. The router needs **per-error-class** behavior: open immediately on a payment or auth failure, but require a streak before tripping on a 429 or 5xx. This is what the registry adds.
 
 | Error class                | Threshold | Cooldown |
 | -------------------------- | --------- | -------- |
@@ -96,7 +96,7 @@ The 5-minute window on 402 reflects operational reality: credits might get toppe
 
 ### How the router uses it
 
-1. **Before the primary call**, `generateText` consults `globalLLMProviderHealth.isOpen(resolvedProviderId)`. If the breaker is open, it throws a synthetic `LLMProviderCircuitOpenError` with `httpStatus: 503`. The existing [`isRetryableError`](https://github.com/framersai/agentos/blob/master/src/api/generateText.ts) check recognizes that status and routes the call into the fallback chain. No network round-trip, no TLS handshake, no waste.
+1. **Before the primary call**, `generateText` consults `globalLLMProviderHealth.isOpen(resolvedProviderId)`. If the breaker is open, it throws a synthetic `LLMProviderCircuitOpenError` with `httpStatus: 503`. The existing [`isRetryableError`](https://github.com/framerslab/agentos/blob/master/src/api/generateText.ts) check recognizes that status and routes the call into the fallback chain. No network round-trip, no TLS handshake, no waste.
 2. **On a real provider error** (anything caught in the outer try/catch), `recordFailure(providerId, error)` classifies the error by HTTP status and either trips immediately (for 401/402/403) or increments the streak counter (for 429/5xx).
 3. **On success**, `recordSuccess(providerId)` resets the streak counter so a future transient failure starts fresh. A single success does NOT shorten an already-open cooldown: the breaker is open precisely because we want to stop probing for a window.
 4. **In the fallback chain loop**, every fallback entry is checked against `isOpen()` before its attempt. A dead chain entry is skipped instantly, so the loop walks to the first healthy provider with O(N) constant-time checks rather than O(N) network calls.
@@ -105,8 +105,8 @@ The 5-minute window on 402 reflects operational reality: credits might get toppe
 
 The registry reads HTTP status from three sources, in order:
 
-1. `[NNN] ...` prefix in `error.message` — the shape [`OpenRouterProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/OpenRouterProvider.ts) decorates its errors with so downstream regex-based routing can find them.
-2. `error.statusCode` numeric property — [`OpenRouterProviderError`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/errors/OpenRouterProviderError.ts) sets this explicitly.
+1. `[NNN] ...` prefix in `error.message` — the shape [`OpenRouterProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/OpenRouterProvider.ts) decorates its errors with so downstream regex-based routing can find them.
+2. `error.statusCode` numeric property — [`OpenRouterProviderError`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/errors/OpenRouterProviderError.ts) sets this explicitly.
 3. `error.status` numeric property — the Anthropic and OpenAI SDK shape.
 
 If none of those resolves, the error is treated as the conservative transient class (5-failure threshold, 60 s cooldown). Better to under-protect on a one-off network blip than lock out a healthy provider.
@@ -140,7 +140,7 @@ expect(isolated.isOpen('mock-provider')).toBe(true);
 
 ### Why a singleton
 
-Provider health is process-wide state. Two concurrent `generateText` calls inside the same Node process see the same OpenRouter: if one just discovered it's at 402, the other shouldn't redo the discovery. The [`globalLLMProviderHealth`](https://github.com/framersai/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) singleton is the natural granularity. Tests construct their own [`LLMProviderHealthRegistry`](https://github.com/framersai/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) instances to keep state isolated across cases.
+Provider health is process-wide state. Two concurrent `generateText` calls inside the same Node process see the same OpenRouter: if one just discovered it's at 402, the other shouldn't redo the discovery. The [`globalLLMProviderHealth`](https://github.com/framerslab/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) singleton is the natural granularity. Tests construct their own [`LLMProviderHealthRegistry`](https://github.com/framerslab/agentos/blob/master/src/core/safety/LLMProviderHealthRegistry.ts) instances to keep state isolated across cases.
 
 The registry is **ephemeral by design**: it lives in memory and resets on server restart. Persistent provider-health tracking would add complexity (Redis, write-through cache invalidation) for a problem the in-process singleton already solves for the dominant case: a long-running batch job hammering a degraded provider.
 
@@ -371,7 +371,7 @@ async function guardedLLMCall(seedId, messages, tools, options) {
 }
 ```
 
-Additionally, [`ActionDeduplicator`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ActionDeduplicator.ts) and [`ToolExecutionGuard`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) are used in other parts of the network:
+Additionally, [`ActionDeduplicator`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/ActionDeduplicator.ts) and [`ToolExecutionGuard`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) are used in other parts of the network:
 
 - **ActionDeduplicator** prevents duplicate votes and engagement actions in `recordEngagement()`
 - **ToolExecutionGuard** wraps all tool invocations via `newsroom.setToolGuard()`
@@ -381,11 +381,11 @@ Additionally, [`ActionDeduplicator`](https://github.com/framersai/agentos/blob/m
 
 | Layer | Protection | Default Trigger | Error Type |
 |-------|-----------|----------------|------------|
-| CircuitBreaker | Opens after failures, cooldown before retry | 5 fails in 60s | [`CircuitOpenError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) |
-| CostGuard | Hard spending cap per session/day/operation | $5/day per agent | [`CostCapExceededError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) |
+| CircuitBreaker | Opens after failures, cooldown before retry | 5 fails in 60s | [`CircuitOpenError`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) |
+| CostGuard | Hard spending cap per session/day/operation | $5/day per agent | [`CostCapExceededError`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CostGuard.ts) |
 | StuckDetector | Pause on repeated output or oscillation | 3 identical outputs in 5 min | Callback-driven |
 | SafetyEngine | Killswitches + rate limiting | 10 posts/hr, 60 votes/hr | `{ allowed: false }` |
-| ToolExecutionGuard | Timeout + per-tool circuit breaker | 30s timeout | [`ToolTimeoutError`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) |
+| ToolExecutionGuard | Timeout + per-tool circuit breaker | 30s timeout | [`ToolTimeoutError`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/ToolExecutionGuard.ts) |
 | ActionDeduplicator | Prevent duplicate actions within window | 1 hr window, 10k entries | Boolean check |
 
 ## Imports
@@ -413,18 +413,18 @@ The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilari
 
 ### Circuit breakers + bulkheads
 
-- Nygard, M. T. (2018). [*Release It! Design and Deploy Production-Ready Software*](https://pragprog.com/titles/mnee2/release-it-second-edition/) (2nd ed.). Pragmatic Bookshelf. — Foundational treatment of stability patterns: circuit breaker, bulkhead, timeout, and steady-state. The [`CircuitBreaker`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) here implements the three-state (closed / open / half-open) machine from this book.
+- Nygard, M. T. (2018). [*Release It! Design and Deploy Production-Ready Software*](https://pragprog.com/titles/mnee2/release-it-second-edition/) (2nd ed.). Pragmatic Bookshelf. — Foundational treatment of stability patterns: circuit breaker, bulkhead, timeout, and steady-state. The [`CircuitBreaker`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) here implements the three-state (closed / open / half-open) machine from this book.
 - Fowler, M. (2014). [*CircuitBreaker.*](https://martinfowler.com/bliki/CircuitBreaker.html) Martin Fowler's bliki. — Practical write-up of the circuit-breaker pattern with state-transition examples.
 
 ### Cost guards + resource controls
 
-- Patel, A., Singh, A., Patel, V., Verma, V., & Patel, K. (2023). [*FrugalGPT: How to use large language models while reducing cost and improving performance.*](https://arxiv.org/abs/2305.05176) arXiv:2305.05176. — Cost-aware LLM routing methodology informing the [`CostGuard`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) design — failover to cheaper providers when budgets approach limits.
+- Patel, A., Singh, A., Patel, V., Verma, V., & Patel, K. (2023). [*FrugalGPT: How to use large language models while reducing cost and improving performance.*](https://arxiv.org/abs/2305.05176) arXiv:2305.05176. — Cost-aware LLM routing methodology informing the [`CostGuard`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CostGuard.ts) design — failover to cheaper providers when budgets approach limits.
 - Chen, L., Zaharia, M., & Zou, J. (2020). [*FrugalML: How to use ML prediction APIs more accurately and cheaply.*](https://arxiv.org/abs/2006.07512) NeurIPS 2020. — Earlier work on prediction-API cost optimization that informed the model-cascade pattern.
 
 ### Stuck detection / liveness
 
 - Brewer, E. A. (2000). [*Towards robust distributed systems.*](https://people.eecs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf) PODC 2000 keynote. — The CAP theorem framing that motivates aggressive timeout + stuck-detection in distributed agent runtimes where partial unavailability is normal.
-- Cantrill, B., Bonwick, J., & Marx, R. (2010). [*Hidden in plain sight.*](https://queue.acm.org/detail.cfm?id=1117401) *ACM Queue*, 8(1). — Operational practice for detecting stuck processes via watchdog timers + heartbeat-style liveness — informs the [`StuckDetector`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/StuckDetector.ts) design.
+- Cantrill, B., Bonwick, J., & Marx, R. (2010). [*Hidden in plain sight.*](https://queue.acm.org/detail.cfm?id=1117401) *ACM Queue*, 8(1). — Operational practice for detecting stuck processes via watchdog timers + heartbeat-style liveness — informs the [`StuckDetector`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/StuckDetector.ts) design.
 
 ### Rate limiting
 
@@ -432,7 +432,7 @@ The social safety components (`SafetyEngine`, `ActionAuditLog`, `ContentSimilari
 
 ### Implementation references
 
-- [`packages/agentos/src/safety/runtime/CircuitBreaker.ts`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) — three-state circuit breaker
-- [`packages/agentos/src/safety/runtime/CostGuard.ts`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/CostGuard.ts) — cost-cap enforcement with graceful degradation
-- [`packages/agentos/src/safety/runtime/StuckDetector.ts`](https://github.com/framersai/agentos/blob/master/src/safety/runtime/StuckDetector.ts) — watchdog-based stuck-call detection
-- [`packages/agentos/src/core/rate-limiting/`](https://github.com/framersai/agentos/tree/master/src/core/rate-limiting) — token-bucket + leaky-bucket implementations
+- [`packages/agentos/src/safety/runtime/CircuitBreaker.ts`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CircuitBreaker.ts) — three-state circuit breaker
+- [`packages/agentos/src/safety/runtime/CostGuard.ts`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/CostGuard.ts) — cost-cap enforcement with graceful degradation
+- [`packages/agentos/src/safety/runtime/StuckDetector.ts`](https://github.com/framerslab/agentos/blob/master/src/safety/runtime/StuckDetector.ts) — watchdog-based stuck-call detection
+- [`packages/agentos/src/core/rate-limiting/`](https://github.com/framerslab/agentos/tree/master/src/core/rate-limiting) — token-bucket + leaky-bucket implementations

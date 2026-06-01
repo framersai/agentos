@@ -4,10 +4,10 @@ The CLI Registry is AgentOS's auto-discovery system for installed command-line t
 
 ## Overview
 
-AgentOS ships with a JSON-based registry of 54 CLI descriptors across 8 categories. At startup (or on demand), the [`CLIRegistry`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) runs `which` + `--version` for each registered binary in parallel, producing a scan result that tells the runtime exactly what's available on the host machine.
+AgentOS ships with a JSON-based registry of 54 CLI descriptors across 8 categories. At startup (or on demand), the [`CLIRegistry`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) runs `which` + `--version` for each registered binary in parallel, producing a scan result that tells the runtime exactly what's available on the host machine.
 
 This powers:
-- **LLM provider auto-detection** -- [`ClaudeCodeCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/ClaudeCodeCLIBridge.ts) and [`GeminiCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/GeminiCLIBridge.ts) check if their binary is installed before attempting subprocess calls.
+- **LLM provider auto-detection** -- [`ClaudeCodeCLIBridge`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/ClaudeCodeCLIBridge.ts) and [`GeminiCLIBridge`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/GeminiCLIBridge.ts) check if their binary is installed before attempting subprocess calls.
 - **Health checks** -- detected CLIs can be included in diagnostic output.
 - **Capability discovery** -- the discovery engine indexes installed tools as capabilities agents can reference.
 - **cli-executor extension** -- `shell_execute` relies on the host having the right binaries.
@@ -29,7 +29,7 @@ The 54 bundled descriptors live in `src/sandbox/subprocess/registry/` as plain J
 
 ## CLIDescriptor Shape
 
-Each JSON entry conforms to the [`CLIDescriptor`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/types.ts) interface:
+Each JSON entry conforms to the [`CLIDescriptor`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/types.ts) interface:
 
 ```typescript
 interface CLIDescriptor {
@@ -95,7 +95,7 @@ const empty    = new CLIRegistry(false);       // starts empty (no defaults)
 
 ### CLIScanResult
 
-The result from `scan()` or `check()` extends [`CLIDescriptor`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/types.ts):
+The result from `scan()` or `check()` extends [`CLIDescriptor`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/types.ts):
 
 ```typescript
 interface CLIScanResult extends CLIDescriptor {
@@ -167,14 +167,14 @@ console.log(`LLM CLIs found: ${llmClis.filter(c => c.installed).length}/${llmCli
 
 ## Integration with CLISubprocessBridge
 
-The [`CLISubprocessBridge`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLISubprocessBridge.ts) is an abstract base class for managing CLI subprocesses. It handles spawning, stdin piping, NDJSON stream parsing, timeouts, and abort signals. Subclasses implement CLI-specific flag assembly and error classification.
+The [`CLISubprocessBridge`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/CLISubprocessBridge.ts) is an abstract base class for managing CLI subprocesses. It handles spawning, stdin piping, NDJSON stream parsing, timeouts, and abort signals. Subclasses implement CLI-specific flag assembly and error classification.
 
 Two production bridges extend it:
 
 | Bridge | Binary | Purpose |
 |--------|--------|---------|
-| [`ClaudeCodeCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/ClaudeCodeCLIBridge.ts) | `claude` | Anthropic Claude via Max subscription (no API key needed) |
-| [`GeminiCLIBridge`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/GeminiCLIBridge.ts) | `gemini` | Google Gemini via Google account login (no API key needed) |
+| [`ClaudeCodeCLIBridge`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/ClaudeCodeCLIBridge.ts) | `claude` | Anthropic Claude via Max subscription (no API key needed) |
+| [`GeminiCLIBridge`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/GeminiCLIBridge.ts) | `gemini` | Google Gemini via Google account login (no API key needed) |
 
 Both bridges use `checkBinaryInstalled()` (which internally runs `which` + `--version`) before attempting LLM calls, and fall back gracefully when the binary is missing.
 
@@ -220,7 +220,7 @@ class MyToolBridge extends CLISubprocessBridge {
 
 ## Integration with cli-executor Extension
 
-The `cli-executor` extension pack (`@framers/agentos-ext-cli-executor`) provides tools that let agents execute arbitrary shell commands on the host. While it does not import [`CLIRegistry`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) directly, the two systems are complementary:
+The `cli-executor` extension pack (`@framers/agentos-ext-cli-executor`) provides tools that let agents execute arbitrary shell commands on the host. While it does not import [`CLIRegistry`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) directly, the two systems are complementary:
 
 - **CLIRegistry** answers "what binaries exist?" -- discovery and detection.
 - **cli-executor** answers "can the agent run this command?" -- execution with security guardrails.
@@ -243,7 +243,7 @@ The `balanced` tier is the recommended default. It permits CLI execution but blo
 
 ## Error Handling
 
-The [`CLISubprocessError`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/errors.ts) class provides structured errors with actionable guidance:
+The [`CLISubprocessError`](https://github.com/framerslab/agentos/blob/master/src/safety/sandbox/subprocess/errors.ts) class provides structured errors with actionable guidance:
 
 ```typescript
 import { CLISubprocessError, CLI_ERROR } from '@framers/agentos/sandbox/subprocess';

@@ -6,7 +6,7 @@
 
 ## Core Packages
 
-### [@framers/agentos](https://github.com/framersai/agentos)
+### [@framers/agentos](https://github.com/framerslab/agentos)
 **Main SDK** — The core orchestration runtime for building adaptive AI agents.
 
 ```bash
@@ -14,11 +14,11 @@ npm install @framers/agentos
 ```
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
-[![GitHub](https://img.shields.io/github/stars/framersai/agentos?style=social)](https://github.com/framersai/agentos)
+[![GitHub](https://img.shields.io/github/stars/framersai/agentos?style=social)](https://github.com/framerslab/agentos)
 
 ---
 
-### [@framers/sql-storage-adapter](https://github.com/framersai/sql-storage-adapter)
+### [@framers/sql-storage-adapter](https://github.com/framerslab/sql-storage-adapter)
 **SQL Storage** — Cross-platform SQL storage abstraction with automatic fallbacks. Supports SQLite, PostgreSQL, and in-memory storage.
 
 ```bash
@@ -26,7 +26,7 @@ npm install @framers/sql-storage-adapter
 ```
 
 [![npm](https://img.shields.io/npm/v/@framers/sql-storage-adapter?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/sql-storage-adapter)
-[![GitHub](https://img.shields.io/github/stars/framersai/sql-storage-adapter?style=social)](https://github.com/framersai/sql-storage-adapter)
+[![GitHub](https://img.shields.io/github/stars/framersai/sql-storage-adapter?style=social)](https://github.com/framerslab/sql-storage-adapter)
 
 **Features:**
 - SQLite (better-sqlite3, sql.js for browser)
@@ -36,7 +36,7 @@ npm install @framers/sql-storage-adapter
 
 ---
 
-### [@framers/agentos-extensions-registry](https://github.com/framersai/agentos-extensions)
+### [@framers/agentos-extensions-registry](https://github.com/framerslab/agentos-extensions)
 **Curated Extensions Registry** — Load all official extensions with a single `createCuratedManifest()` call. Handles lazy loading, secret resolution, and factory invocation.
 
 ```bash
@@ -44,7 +44,7 @@ npm install @framers/agentos-extensions-registry
 ```
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos-extensions-registry?logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos-extensions-registry)
-[![GitHub](https://img.shields.io/github/stars/framersai/agentos-extensions?style=social)](https://github.com/framersai/agentos-extensions)
+[![GitHub](https://img.shields.io/github/stars/framersai/agentos-extensions?style=social)](https://github.com/framerslab/agentos-extensions)
 
 ```typescript
 import { createCuratedManifest } from '@framers/agentos-extensions-registry';
@@ -63,7 +63,7 @@ Only installed extension packages will load — missing ones are skipped silentl
 
 ---
 
-### [@framers/agentos-extensions](https://github.com/framersai/agentos-extensions)
+### [@framers/agentos-extensions](https://github.com/framerslab/agentos-extensions)
 **Extension Source** — Implementations, templates, and manifests for tools, channel adapters, and integrations. The `agentos-extensions-registry` package catalogs and loads these.
 
 ```bash
@@ -85,8 +85,8 @@ npm install @framers/agentos-extensions
 
 ---
 
-### [@framers/agentos-skills-registry](https://github.com/framersai/agentos-skills-registry)
-**Curated Skills Catalog SDK** — typed catalog (SKILLS_CATALOG), query helpers, and lazy-loading factories for [`SkillRegistry`](https://github.com/framersai/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) and snapshots.
+### [@framers/agentos-skills-registry](https://github.com/framerslab/agentos-skills-registry)
+**Curated Skills Catalog SDK** — typed catalog (SKILLS_CATALOG), query helpers, and lazy-loading factories for [`SkillRegistry`](https://github.com/framerslab/agentos/blob/master/src/cognition/skills/SkillRegistry.ts) and snapshots.
 
 ```bash
 npm install @framers/agentos-skills-registry
@@ -103,7 +103,7 @@ const snapshot = await createCuratedSkillSnapshot({ skills: ['github', 'weather'
 
 ---
 
-### [@framers/agentos-skills](https://github.com/framersai/agentos-skills)
+### [@framers/agentos-skills](https://github.com/framerslab/agentos-skills)
 **Skills Content** — 88 curated SKILL.md prompt modules + `registry.json` index.
 
 ```bash
@@ -122,7 +122,7 @@ This is the content package for skills. The runtime engine (SkillLoader, SkillRe
 
 ## Applications
 
-### [Paracosm](https://github.com/framersai/paracosm)
+### [Paracosm](https://github.com/framerslab/paracosm)
 **AI Agent Swarm Simulation Engine** — Define worlds as JSON, assign AI leaders with HEXACO personality profiles, and watch their decisions compound into measurably different outcomes from identical starting conditions. Built on `@framers/agentos`.
 
 ```bash
@@ -130,26 +130,26 @@ npm install paracosm
 ```
 
 [![npm](https://img.shields.io/npm/v/paracosm?logo=npm&color=cb3837)](https://www.npmjs.com/package/paracosm)
-[![GitHub](https://img.shields.io/github/stars/framersai/paracosm?style=social)](https://github.com/framersai/paracosm)
+[![GitHub](https://img.shields.io/github/stars/framersai/paracosm?style=social)](https://github.com/framerslab/paracosm)
 
 **Features:**
-- Universal [`RunArtifact`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
-- HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's [`EmergentCapabilityEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentCapabilityEngine.ts)
+- Universal [`RunArtifact`](https://github.com/framerslab/paracosm/blob/master/src/engine/schema/types.ts) schema at `paracosm/schema` covering turn-loop civilization sims, batch-trajectory digital twins, and batch-point forecasts
+- HEXACO personality-driven commander decisions with runtime tool forging through AgentOS's [`EmergentCapabilityEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/EmergentCapabilityEngine.ts)
 - Deterministic kernel + LLM Event Director: same leader on the same seed replays byte-for-byte; two different leaders on the same seed get divergent events from turn 1 (the director reads each leader's HEXACO + accumulated state)
-- [`SubjectConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) and [`InterventionConfig`](https://github.com/framersai/paracosm/blob/master/src/engine/schema/types.ts) input primitives for digital-twin adoption
+- [`SubjectConfig`](https://github.com/framerslab/paracosm/blob/master/src/engine/schema/types.ts) and [`InterventionConfig`](https://github.com/framerslab/paracosm/blob/master/src/engine/schema/types.ts) input primitives for digital-twin adoption
 
 🌐 **Live demo:** [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) · **Docs:** [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs)
 
 ---
 
-### [agentos.sh](https://github.com/framersai/agentos.sh)
+### [agentos.sh](https://github.com/framerslab/agentos.sh)
 **Documentation Website** — Official documentation and marketing site.
 
 🌐 **Live:** [agentos.sh](https://agentos.sh)
 
 ---
 
-### [agentos-workbench](https://github.com/framersai/agentos-workbench)
+### [agentos-workbench](https://github.com/framerslab/agentos-workbench)
 **Development Workbench** — Visual development environment for building and testing AgentOS agents.
 
 **Features:**
@@ -188,9 +188,9 @@ npm install wunderland
 
 We welcome contributions to any repository in the ecosystem:
 
-1. **Bug reports** — [Open an issue](https://github.com/framersai/agentos/issues)
-2. **Feature requests** — [Start a discussion](https://github.com/framersai/agentos/discussions)
-3. **Extensions** — Submit to [agentos-extensions](https://github.com/framersai/agentos-extensions)
+1. **Bug reports** — [Open an issue](https://github.com/framerslab/agentos/issues)
+2. **Feature requests** — [Start a discussion](https://github.com/framerslab/agentos/discussions)
+3. **Extensions** — Submit to [agentos-extensions](https://github.com/framerslab/agentos-extensions)
 4. **Documentation** — PRs welcome on any repo
 
 ---

@@ -29,9 +29,9 @@ Three places HITL plugs in:
 
 | Layer | Primitive | Source | Use when |
 |---|---|---|---|
-| **Agency / agent** | [`HitlConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) on `agency({ hitl: {...} })` or `agent({ hitl: {...} })` | [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) | The host runs a multi-agent agency and wants declarative gates at specific lifecycle events (a tool name, the final return, a strategy override). |
-| **Workflow / graph** | `step({ human: { prompt, autoAccept?, autoReject?, judge? } })` | [`src/orchestration/builders/WorkflowBuilder.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts) + [`src/orchestration/ir/types.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) | The host owns an explicit DAG and wants a typed human node that suspends the graph until a decision payload arrives. |
-| **Runtime** | [`HumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) implementing [`IHumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts) | [`src/orchestration/hitl/`](https://github.com/framersai/agentos/tree/master/src/orchestration/hitl) | A subsystem (planner, custom orchestrator, evaluator) needs severity-aware approval with clarification, edit, and escalation flows in addition to approve/reject. |
+| **Agency / agent** | [`HitlConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) on `agency({ hitl: {...} })` or `agent({ hitl: {...} })` | [`src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) | The host runs a multi-agent agency and wants declarative gates at specific lifecycle events (a tool name, the final return, a strategy override). |
+| **Workflow / graph** | `step({ human: { prompt, autoAccept?, autoReject?, judge? } })` | [`src/orchestration/builders/WorkflowBuilder.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts) + [`src/orchestration/ir/types.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) | The host owns an explicit DAG and wants a typed human node that suspends the graph until a decision payload arrives. |
+| **Runtime** | [`HumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) implementing [`IHumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts) | [`src/orchestration/hitl/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/hitl) | A subsystem (planner, custom orchestrator, evaluator) needs severity-aware approval with clarification, edit, and escalation flows in addition to approve/reject. |
 
 The agency-level surface is what most apps need. Reach for workflow nodes when you're already authoring a graph. Reach for the runtime manager when you need the full clarification/edit/escalation vocabulary outside of an `agency()` run.
 
@@ -65,13 +65,13 @@ const guarded = agency({
 | `beforeReturn: boolean` | The final answer leaves the agency | Customer-facing channels where the last response gets a human or judge review. |
 | `beforeStrategyOverride: boolean` | The orchestrator wants to switch execution strategies mid-run | Adaptive agencies whose strategy drift should be reviewed before it happens. |
 
-Source: [`HitlConfig.approvals` in `src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts).
+Source: [`HitlConfig.approvals` in `src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts).
 
 ## Six handler factories
 
-The [`hitl`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) namespace exports six ready-to-use handler factories. Each returns a [`HitlHandler`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) (an async function taking [`ApprovalRequest`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) and resolving to [`ApprovalDecision`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)), so you compose them by wrapping in your own function when you need logging, fallback chains, or conditional routing.
+The [`hitl`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) namespace exports six ready-to-use handler factories. Each returns a [`HitlHandler`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) (an async function taking [`ApprovalRequest`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) and resolving to [`ApprovalDecision`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts)), so you compose them by wrapping in your own function when you need logging, fallback chains, or conditional routing.
 
-Source: [`src/api/hitl.ts`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts).
+Source: [`src/api/hitl.ts`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts).
 
 ### `hitl.cli()`
 
@@ -99,7 +99,7 @@ handler: hitl.autoReject('dry-run mode — no side effects permitted');
 
 ### `hitl.webhook(url)`
 
-POSTs the [`ApprovalRequest`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) as JSON to your endpoint and reads back an [`ApprovalDecision`](https://github.com/framersai/agentos/blob/master/src/api/types.ts). Non-2xx is treated as rejection with the status code as the reason. Use this when you have an in-house approval service.
+POSTs the [`ApprovalRequest`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) as JSON to your endpoint and reads back an [`ApprovalDecision`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts). Non-2xx is treated as rejection with the status code as the reason. Use this when you have an in-house approval service.
 
 ```typescript
 handler: hitl.webhook('https://approvals.example.com/decide');
@@ -130,7 +130,7 @@ This is the recommended production default for agencies where most actions are l
 
 ## The `ApprovalRequest` / `ApprovalDecision` contract
 
-Source: [`ApprovalRequest` + `ApprovalDecision` in `src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts).
+Source: [`ApprovalRequest` + `ApprovalDecision` in `src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts).
 
 Every handler receives this:
 
@@ -204,7 +204,7 @@ Set `guardrailOverride: false` to disable the safety net and give the handler fu
 
 For typed-graph workflows, the `human` step suspends the graph until a decision payload arrives. The runtime checkpoints state before suspending so resumption is exact.
 
-Source: [`step({ human })` in `WorkflowBuilder.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts), node IR in [`src/orchestration/ir/types.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts).
+Source: [`step({ human })` in `WorkflowBuilder.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts), node IR in [`src/orchestration/ir/types.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts).
 
 ```typescript
 import { workflow } from '@framers/agentos/orchestration';
@@ -244,9 +244,9 @@ Resolution modes (mutually exclusive — pick one):
 
 The `effectClass: 'human'` annotation is read by the workflow planner — it pessimistically schedules around human steps so the rest of the graph can advance maximally in parallel before stopping at the gate.
 
-## Runtime [`HumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts)
+## Runtime [`HumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts)
 
-Source: [`src/orchestration/hitl/HumanInteractionManager.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) + interface [`IHumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts).
+Source: [`src/orchestration/hitl/HumanInteractionManager.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts) + interface [`IHumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts).
 
 This is the richer surface used by the planner and custom orchestrators. It speaks four interaction modes plus checkpoints and feedback ingestion:
 
@@ -260,7 +260,7 @@ interface IHumanInteractionManager {
 }
 ```
 
-[`PendingAction`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts) carries the dimensions a high-stakes approval needs: a severity level, a category, whether the action is reversible, potential consequences, and an estimated cost.
+[`PendingAction`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts) carries the dimensions a high-stakes approval needs: a severity level, a category, whether the action is reversible, potential consequences, and an estimated cost.
 
 ```typescript
 type ActionSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -282,7 +282,7 @@ interface PendingAction {
 }
 ```
 
-Escalation reasons ([`EscalationReason`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) cover the situations the agent should not decide unilaterally:
+Escalation reasons ([`EscalationReason`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) cover the situations the agent should not decide unilaterally:
 
 ```typescript
 type EscalationReason =
@@ -303,7 +303,7 @@ type EscalationDecision =
   | { type: 'delegate'; targetAgentId: string; instructions: string };
 ```
 
-Wire a notification handler ([`HITLNotificationHandler`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) to surface new pending actions to whatever channel hosts your humans — a UI queue, a Slack channel, a PagerDuty incident, etc.
+Wire a notification handler ([`HITLNotificationHandler`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/IHumanInteractionManager.ts)) to surface new pending actions to whatever channel hosts your humans — a UI queue, a Slack channel, a PagerDuty incident, etc.
 
 ## Worked example — CLI handler (local dev)
 
@@ -448,17 +448,17 @@ For agencies that already use the higher-level `agency({ hitl: { approvals: { be
 
 **Can a handler modify the action without rejecting it?** Yes. Return `{ approved: true, modifications: { toolArgs: { ... } } }` and the orchestrator merges those over the original tool arguments before invocation. Same for `output` (overrides the final text) and `instructions` (injected into the system prompt).
 
-**Do agency callbacks (`approvalRequested`, `approvalDecided`) fire for workflow `human` steps?** No — those callbacks are on [`AgencyCallbacks`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) and only fire for [`HitlConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)-driven pauses. Workflow `human` nodes emit graph events instead. Subscribe via `workflow.compile({ on: { ... } })`.
+**Do agency callbacks (`approvalRequested`, `approvalDecided`) fire for workflow `human` steps?** No — those callbacks are on [`AgencyCallbacks`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) and only fire for [`HitlConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts)-driven pauses. Workflow `human` nodes emit graph events instead. Subscribe via `workflow.compile({ on: { ... } })`.
 
 **Can the LLM judge see the full agent call history?** Yes. `ApprovalRequest.context.agentCalls` is the full record so far. The judge prompt receives it as part of the input.
 
 ## See also
 
 - [Guardrails Usage](./GUARDRAILS_USAGE.md) — the post-approval guardrail safety net.
-- [Agency API](../orchestration/AGENCY_API.md) — full `agency()` reference, including the [`HitlConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) field.
+- [Agency API](../orchestration/AGENCY_API.md) — full `agency()` reference, including the [`HitlConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) field.
 - [`workflow()` DSL](../orchestration/WORKFLOW_DSL.md) — typed-graph authoring with `human` steps.
 - [Emergent Capabilities](../architecture/EMERGENT_CAPABILITIES.md) — how `beforeEmergent` gates `spawn_specialist`.
 - [Streaming Semantics](../architecture/STREAMING_SEMANTICS.md) — how `beforeReturn` interacts with the streaming surfaces.
-- [`src/api/hitl.ts`](https://github.com/framersai/agentos/blob/master/src/api/hitl.ts) — source for the six handler factories.
-- [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — `HitlConfig`, `ApprovalRequest`, `ApprovalDecision`.
-- [`src/orchestration/hitl/`](https://github.com/framersai/agentos/tree/master/src/orchestration/hitl) — runtime [`HumanInteractionManager`](https://github.com/framersai/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts).
+- [`src/api/hitl.ts`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) — source for the six handler factories.
+- [`src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) — `HitlConfig`, `ApprovalRequest`, `ApprovalDecision`.
+- [`src/orchestration/hitl/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/hitl) — runtime [`HumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts).

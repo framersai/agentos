@@ -286,7 +286,7 @@ const matches = await store.query(textEmbedding, { topK: 5 });
 
 The vision pipeline integrates directly with the [Multimodal RAG](./MULTIMODAL_RAG.md)
 system for indexing and retrieving image content. Configure RAG via the
-`rag` field on `agent({ ... })` — its shape is the [`RagConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts#L97) interface, with `multimodal.images` toggling image indexing.
+`rag` field on `agent({ ... })` — its shape is the [`RagConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts#L97) interface, with `multimodal.images` toggling image indexing.
 
 ```typescript
 import { agent } from '@framers/agentos';
@@ -307,7 +307,7 @@ console.log(result.text);
 
 For richer indexing pipelines (auto-describe on ingest, multi-modal embedding fusion),
 see the lower-level [Multimodal RAG guide](./MULTIMODAL_RAG.md) — it shows the
-[`VisionPipeline`](https://github.com/framersai/agentos/blob/master/src/io/vision/VisionPipeline.ts) + [`IngestRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/ingest/IngestRouter.ts) wiring directly, without going through the
+[`VisionPipeline`](https://github.com/framerslab/agentos/blob/master/src/io/vision/VisionPipeline.ts) + [`IngestRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/ingest/IngestRouter.ts) wiring directly, without going through the
 high-level `agent()` helper.
 
 ---

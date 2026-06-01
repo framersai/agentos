@@ -4,9 +4,9 @@ Self-calibrating extension of [Memory Router](./MEMORY_ROUTER.md). Derives the r
 
 ## When to use this
 
-Use [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) directly with a shipping preset (`minimize-cost`, `balanced`, `maximize-accuracy`) when your workload is similar to LongMemEval-S — conversational memory with the six standard categories.
+Use [`MemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) directly with a shipping preset (`minimize-cost`, `balanced`, `maximize-accuracy`) when your workload is similar to LongMemEval-S — conversational memory with the six standard categories.
 
-Use [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) when:
+Use [`AdaptiveMemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) when:
 
 1. Your category distribution diverges from LongMemEval-S (e.g., heavy on temporal, light on multi-session).
 2. Your reader / judge / cost profile differs (different LLM, different judge rubric, different per-call cost).
@@ -30,7 +30,7 @@ Three steps:
 
 1. **Aggregate**: roll samples up by `(category, backend)` into mean cost + mean accuracy + sample count.
 2. **Per-category select**: apply a preset rule per category to pick a backend.
-3. **Build table**: assemble the per-category picks into a frozen [`RoutingTable`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts). Categories with insufficient calibration fall back to the static preset's default.
+3. **Build table**: assemble the per-category picks into a frozen [`RoutingTable`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/routing-tables.ts). Categories with insufficient calibration fall back to the static preset's default.
 
 Three preset rules:
 
@@ -99,7 +99,7 @@ For each candidate backend, run your workload through it on a Phase A subset:
 1. Sample N queries from your workload (typically N ≈ 100-300 per category — stratified if some categories are rare).
 2. Dispatch each query to each candidate backend.
 3. Score each outcome with your judge.
-4. Emit one [`CalibrationSample`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) per (query × backend × outcome) tuple.
+4. Emit one [`CalibrationSample`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) per (query × backend × outcome) tuple.
 
 Total spend: roughly N × 3 × per-backend-cost-per-query. For LongMemEval-S Phase A this was ~$30 per backend.
 
@@ -138,13 +138,13 @@ const table = buildAdaptiveRoutingTable({
 
 ## API surface
 
-- [`CalibrationSample`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`CalibrationCell`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`AggregatedCalibration`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
+- [`CalibrationSample`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`CalibrationCell`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`AggregatedCalibration`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
 - `AdaptivePresetRule = 'minimize-cost' | 'balanced' | 'maximize-accuracy'`
-- [`aggregateCalibration`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure aggregator
-- [`selectByPreset`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure per-category selector
-- [`buildAdaptiveRoutingTable`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure full-table constructor
-- [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — class extending [`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) with calibration-derived table
-- [`AdaptiveMemoryRouterOptions`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`SelectByPresetArgs`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`BuildAdaptiveRoutingTableArgs`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
+- [`aggregateCalibration`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure aggregator
+- [`selectByPreset`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure per-category selector
+- [`buildAdaptiveRoutingTable`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — pure full-table constructor
+- [`AdaptiveMemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) — class extending [`MemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts) with calibration-derived table
+- [`AdaptiveMemoryRouterOptions`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`SelectByPresetArgs`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts), [`BuildAdaptiveRoutingTableArgs`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts)
 
 ## Related
 

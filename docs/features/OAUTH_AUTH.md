@@ -38,11 +38,11 @@ interface IOAuthTokenStore {
 }
 ```
 
-These interfaces are provider-agnostic. [`IOAuthFlow`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/types.ts) defines the contract for any OAuth-based LLM provider authentication, and [`IOAuthTokenStore`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/types.ts) abstracts token persistence.
+These interfaces are provider-agnostic. [`IOAuthFlow`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/types.ts) defines the contract for any OAuth-based LLM provider authentication, and [`IOAuthTokenStore`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/types.ts) abstracts token persistence.
 
 ## OpenAI Implementation
 
-[`OpenAIOAuthFlow`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/OpenAIOAuthFlow.ts) implements [`IOAuthFlow`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/types.ts) for OpenAI's device code flow, using the same public client ID and endpoints as the Codex CLI.
+[`OpenAIOAuthFlow`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/OpenAIOAuthFlow.ts) implements [`IOAuthFlow`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/types.ts) for OpenAI's device code flow, using the same public client ID and endpoints as the Codex CLI.
 
 ### Endpoints
 
@@ -108,7 +108,7 @@ Features:
 
 ## Integration with LLM Providers
 
-The [`OpenAIProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/implementations/OpenAIProvider.ts) in AgentOS core accepts an optional `oauthFlow` config:
+The [`OpenAIProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/implementations/OpenAIProvider.ts) in AgentOS core accepts an optional `oauthFlow` config:
 
 ```typescript
 const provider = new OpenAIProvider({
@@ -128,7 +128,7 @@ To add OAuth support for a new LLM provider:
 2. Set `providerId` to the provider's registry ID (e.g., `'anthropic'`)
 3. Implement the provider's OAuth flow in `authenticate()`
 4. Implement token refresh in `refresh()`
-5. Use [`FileTokenStore`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/FileTokenStore.ts) or a custom [`IOAuthTokenStore`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/types.ts) for persistence
+5. Use [`FileTokenStore`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/FileTokenStore.ts) or a custom [`IOAuthTokenStore`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/types.ts) for persistence
 
 ```typescript
 export class ExampleOAuthFlow implements IOAuthFlow {
@@ -137,7 +137,7 @@ export class ExampleOAuthFlow implements IOAuthFlow {
 }
 ```
 
-The [`FileTokenStore`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/FileTokenStore.ts) automatically namespaces by `providerId`, so multiple providers can coexist.
+The [`FileTokenStore`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/FileTokenStore.ts) automatically namespaces by `providerId`, so multiple providers can coexist.
 
 ### Current Provider Support
 

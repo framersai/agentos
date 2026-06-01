@@ -127,7 +127,7 @@ await agentos.initialize({
 - ✅ No quota limits
 
 **Fallback:** If better-sqlite3 fails to build, fall back to sql.js manually
-or via [`resolveStorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/resolver.ts) with a preferred-order list:
+or via [`resolveStorageAdapter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/resolver.ts) with a preferred-order list:
 
 ```typescript
 import { resolveStorageAdapter } from '@framers/sql-storage-adapter';

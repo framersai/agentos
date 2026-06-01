@@ -138,7 +138,7 @@ console.log(result.errors);       // detailed error list
 
 ## AgentKeyManager
 
-[`AgentKeyManager`](https://github.com/framersai/agentos/blob/master/src/safety/provenance/crypto/AgentKeyManager.ts) generates and manages the Ed25519 keypair used to sign
+[`AgentKeyManager`](https://github.com/framerslab/agentos/blob/master/src/safety/provenance/crypto/AgentKeyManager.ts) generates and manages the Ed25519 keypair used to sign
 ledger events. Keep the private key in your secure secret store; publish the
 public key for third-party verification.
 

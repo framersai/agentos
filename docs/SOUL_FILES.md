@@ -4,7 +4,7 @@ AgentOS supports a markdown-based identity convention for agents, modeled after
 the OpenClaw workspace pattern and the [aaronjmars/soul.md](https://github.com/aaronjmars/soul.md)
 spec. Identity, voice, procedural rules, and long-term memory all live in plain
 markdown files inside a per-agent workspace directory. The runtime loads them at
-boot, parses YAML frontmatter into structured [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) fields, and
+boot, parses YAML frontmatter into structured [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) fields, and
 injects the prose as system messages.
 
 ![Soul file anatomy: six-file workspace (SOUL.md required, STYLE/IDENTITY/AGENTS/MEMORY/examples optional) loads at boot into structured persona fields and a prose system prelude, resolving per-turn to a persona card, behavioral rules, persistent memory, and output calibration](/img/diagrams/soul-files-anatomy.svg)
@@ -131,16 +131,16 @@ The `hexaco:` block in SOUL.md frontmatter maps directly to AgentOS's existing
 flow into:
 
 - `PersonaDriftMechanism` — long-term trait drift across sessions
-- [`PersonalityMutationStore`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — per-trait mutation history
-- [`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — runtime personality adjustment via emergent capabilities
-- [`PersonaOverlayManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) — mood-based system-prompt overlays
+- [`PersonalityMutationStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — per-trait mutation history
+- [`AdaptPersonalityTool`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — runtime personality adjustment via emergent capabilities
+- [`PersonaOverlayManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) — mood-based system-prompt overlays
 
 All existing persona surfaces (mood adaptation, voice routing, avatar generation)
 work identically whether the persona was loaded from JSON or from SOUL.md.
 
 ## Migrating from JSON Personas
 
-The legacy [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) JSON format works alongside SOUL.md — they
+The legacy [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) JSON format works alongside SOUL.md — they
 both produce the same `IPersonaDefinition` runtime object. To migrate:
 
 ```ts

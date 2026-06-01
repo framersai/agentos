@@ -50,7 +50,7 @@ If a term in the doc below sounds new, here's where it plugs in:
 | **OM-v10 / OM-v11** | observational-memory backends MemoryRouter can dispatch to | currently underperform canonical-hybrid in sem-embed era; preserved for cost-tolerant workloads |
 | **LLM-as-judge** | how every router's classifier picks a category | one classifier call per query, shared across 3 routers |
 | **Tiered presets** | shipped routing tables — `minimize-cost` / `balanced` / `maximize-accuracy` | calibrated from Phase B per-category cost-accuracy points |
-| **Adaptive variant** | [`AdaptiveMemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) self-calibrates from your workload | use when your category mix or reader differs from LongMemEval-S |
+| **Adaptive variant** | [`AdaptiveMemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/adaptive.ts) self-calibrates from your workload | use when your category mix or reader differs from LongMemEval-S |
 | **Storage substrate** | `@framers/sql-storage-adapter` — same brain code, multiple backends | SQLite default, Postgres / IndexedDB / Capacitor / Electron all swap in |
 | **Eight cognitive mechanisms** | optional neuroscience-grounded layers (RIF, gist, schema, etc.) | each maps to a published paper; HEXACO-modulated; individually toggleable |
 
@@ -63,9 +63,9 @@ The deep sections below trace each of those into the actual code paths and the P
 A "memory library" can mean very different things. AgentOS ships:
 
 1. A **storage substrate** (`Memory.createSqlite()` / `Memory.createPostgres()` / `Memory.createWithAdapter()`): traces, embeddings, FTS5 (or Postgres tsvector + GIN) index, knowledge graph, memory graph, retrieval feedback, consolidation log, and an optional verbatim archive — all sitting on top of [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter). The adapter auto-selects the best backend per runtime (better-sqlite3 on Node, sql.js+IndexedDB in the browser, Capacitor SQLite on mobile, Postgres in production, in-memory for tests) so the same brain code runs everywhere. Zero infrastructure for the SQLite default, scales to multi-tenant Postgres without rewriting a callsite.
-2. A **cognitive layer** ([`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts)): personality-modulated encoding, Ebbinghaus decay, Baddeley working memory, ACT-R spreading activation, six-signal retrieval scoring, optional observer/reflector pipelines for conversation compression.
+2. A **cognitive layer** ([`CognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts)): personality-modulated encoding, Ebbinghaus decay, Baddeley working memory, ACT-R spreading activation, six-signal retrieval scoring, optional observer/reflector pipelines for conversation compression.
 3. A **classifier-driven orchestration layer** (the Cognitive Pipeline): three small `gpt-5-mini` classifier calls share one classification pass to route every message through the cheapest, most accurate path for that specific query.
-4. A **benchmark harness** ([`@framers/agentos-bench`](https://github.com/framersai/agentos-bench)): the same primitives, run against LongMemEval-S, LongMemEval-M, LOCOMO, BEAM, and a battery of cognitive-mechanism micro-benchmarks. Per-case run JSONs at fixed seed, 95% confidence intervals from 10k bootstrap resamples, judge false-positive-rate probes per benchmark.
+4. A **benchmark harness** ([`@framers/agentos-bench`](https://github.com/framerslab/agentos-bench)): the same primitives, run against LongMemEval-S, LongMemEval-M, LOCOMO, BEAM, and a battery of cognitive-mechanism micro-benchmarks. Per-case run JSONs at fixed seed, 95% confidence intervals from 10k bootstrap resamples, judge false-positive-rate probes per benchmark.
 
 Most "memory libraries" stop at layer 1 with a vector index pinned to one backend. AgentOS treats backend portability and orchestration (layer 3) as first-class, which is where it pulls ahead on the cost-accuracy frontier without sacrificing reproducibility or deployment flexibility.
 
@@ -73,7 +73,7 @@ Most "memory libraries" stop at layer 1 with a vector index pinned to one backen
 
 ## The Storage Substrate ([`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter))
 
-The brain doesn't speak SQLite directly. It speaks [`IStorageAdapter`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts), an abstraction over six concrete backends that auto-selects per runtime:
+The brain doesn't speak SQLite directly. It speaks [`IStorageAdapter`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/EmergentToolRegistry.ts), an abstraction over six concrete backends that auto-selects per runtime:
 
 | Adapter | Package | Where it runs | Use case |
 |---|---|---|---|
@@ -93,7 +93,7 @@ const db = await createDatabase({ priority: ['better-sqlite3', 'sqljs'] });
 
 ### How memory plugs into the adapter
 
-Three entry points on the [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) class:
+Three entry points on the [`Brain`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) class:
 
 ```ts
 import { Brain } from '@framers/agentos/memory';
@@ -117,9 +117,9 @@ const sharedBrain = await Brain.openWithAdapter(adapter, { brainId: 'companion-a
 
 Three things the adapter abstracts away so the brain code stays identical:
 
-1. **SQL Dialect.** `INSERT OR IGNORE`, `json_extract(...)`, `ifnull(...)`, `PRAGMA` get translated automatically between SQLite and Postgres via the [`SqlDialect`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/dialect.ts) interface. The brain writes one set of queries; the dialect rewrites them per backend.
-2. **Full-text search.** [`IFullTextSearch`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/fts.ts) abstracts FTS5 (SQLite Porter tokenizer) and tsvector + GIN (Postgres) behind one `createIndex` / `matchClause` / `rankExpression` / `rebuildCommand` API. The hybrid retriever's BM25 lexical leg works on both backends without branching.
-3. **BLOB codec.** Embeddings are stored as raw `Float32Array` BLOBs. [`NodeBlobCodec`](https://github.com/framersai/sql-storage-adapter/blob/master/src/codecs/NodeBlobCodec.ts) uses `Buffer`; [`BrowserBlobCodec`](https://github.com/framersai/sql-storage-adapter/blob/master/src/codecs/BrowserBlobCodec.ts) uses `DataView`. The 1536-dim `text-embedding-3-small` vector takes ~6 KB per trace on disk and round-trips byte-identical across backends.
+1. **SQL Dialect.** `INSERT OR IGNORE`, `json_extract(...)`, `ifnull(...)`, `PRAGMA` get translated automatically between SQLite and Postgres via the [`SqlDialect`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/dialect.ts) interface. The brain writes one set of queries; the dialect rewrites them per backend.
+2. **Full-text search.** [`IFullTextSearch`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/fts.ts) abstracts FTS5 (SQLite Porter tokenizer) and tsvector + GIN (Postgres) behind one `createIndex` / `matchClause` / `rankExpression` / `rebuildCommand` API. The hybrid retriever's BM25 lexical leg works on both backends without branching.
+3. **BLOB codec.** Embeddings are stored as raw `Float32Array` BLOBs. [`NodeBlobCodec`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/codecs/NodeBlobCodec.ts) uses `Buffer`; [`BrowserBlobCodec`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/codecs/BrowserBlobCodec.ts) uses `DataView`. The 1536-dim `text-embedding-3-small` vector takes ~6 KB per trace on disk and round-trips byte-identical across backends.
 
 ### Multi-tenant Postgres mode
 
@@ -146,7 +146,7 @@ A `pg_advisory_xact_lock` per `brainId` serializes concurrent first-opens so two
 
 ### Pool sizing
 
-Sharing a [`StorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/index.ts) across N brains shares the underlying connection pool. Five brains opened against a `max: 10` pool compete for the same 10 connections; one slow query starves the others. Size for total concurrent query load across all brains, not per-brain. For high-fan-out deployments (one process serving 50+ active brains), use a dedicated pool per brain via `Brain.openPostgres(connStr, { brainId, poolSize: N })` instead of sharing.
+Sharing a [`StorageAdapter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/index.ts) across N brains shares the underlying connection pool. Five brains opened against a `max: 10` pool compete for the same 10 connections; one slow query starves the others. Size for total concurrent query load across all brains, not per-brain. For high-fan-out deployments (one process serving 50+ active brains), use a dedicated pool per brain via `Brain.openPostgres(connStr, { brainId, poolSize: N })` instead of sharing.
 
 ### Portable export and import
 
@@ -161,13 +161,13 @@ const forkBrain = await Brain.openPostgres(connStr, { brainId: 'alice-fork' });
 await forkBrain.importFromSqlite('/tmp/alice-snapshot.sqlite');
 ```
 
-The adapter's [`IDatabaseExporter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/exporter.ts) ships [`SqliteFileExporter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/exporters/SqliteFileExporter.ts) (`VACUUM INTO`) and [`PostgresExporter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/exporters/PostgresExporter.ts) (`pg_dump`) for backend-native export paths.
+The adapter's [`IDatabaseExporter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/exporter.ts) ships [`SqliteFileExporter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/exporters/SqliteFileExporter.ts) (`VACUUM INTO`) and [`PostgresExporter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/exporters/PostgresExporter.ts) (`pg_dump`) for backend-native export paths.
 
 ### Why this matters for the benchmarks
 
 Every LongMemEval-S / LongMemEval-M run in the bench uses the SQLite adapter because the bench is a single-process harness measuring a single brain at a time. The same brain code runs over Postgres in production deployments (Wilds.ai, Paracosm, this voice-chat-assistant repo). The SQL dialect translation, full-text search abstraction, and BLOB codec are designed to preserve query semantics across backends, so retrieval-quality metrics (recall@K, NDCG@K, MRR) are expected to transfer; latency floors differ (Postgres has higher per-query network overhead than embedded SQLite, but scales horizontally on connection count where SQLite serializes).
 
-For the full adapter architecture, capability matrix, and lifecycle hooks, see [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter) (README, `ARCHITECTURE.md`, `PLATFORM_STRATEGY.md`).
+For the full adapter architecture, capability matrix, and lifecycle hooks, see [`@framers/sql-storage-adapter`](https://github.com/framerslab/sql-storage-adapter) (README, `ARCHITECTURE.md`, `PLATFORM_STRATEGY.md`).
 
 ---
 
@@ -415,7 +415,7 @@ The standalone `Memory` facade is sufficient for any TypeScript app that needs p
 
 ### Encoding (write time)
 
-Every trace is created with a [`MemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) shape that records:
+Every trace is created with a [`MemoryTrace`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) shape that records:
 
 - the content
 - the embedding
@@ -472,7 +472,7 @@ Default weights are calibrated from LongMemEval-S Phase B sweeps. HEXACO modulat
 
 ## The Eight Cognitive Mechanisms
 
-On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms. Each is HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on [`CognitiveMemoryConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts).
+On top of the encoding/decay/retrieval substrate, the runtime ships eight optional neuroscience-grounded mechanisms. Each is HEXACO-personality-modulated and individually configurable via `cognitiveMechanisms` on [`CognitiveMemoryConfig`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/config.ts).
 
 ### Retrieval-time (synchronous)
 
@@ -512,7 +512,7 @@ The flashbulb-immunity guard skips reconsolidation, RIF, temporal gist, and emot
 
 The verbatim archive is **write-ahead**: any mechanism that would lose verbatim content (Step 5 compact, the temporal-gist mechanism) calls `archive.store()` and awaits success before mutating the trace. If the archive write fails, the destructive operation aborts. Rehydration (`archive.rehydrate(traceId)`) returns the original on demand without boosting encoding strength or incrementing retrieval count.
 
-[`SqlStorageMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/SqlStorageMemoryArchive.ts) wraps the same `@framers/sql-storage-adapter` interface as the brain, so archive tables (`archived_traces`, `archive_access_log`) live in the same database file by default. Postgres, IndexedDB, Capacitor SQLite, and sql.js are all supported through the shared adapter substrate (see [The Storage Substrate](#the-storage-substrate-framerssql-storage-adapter) above).
+[`SqlStorageMemoryArchive`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/archive/SqlStorageMemoryArchive.ts) wraps the same `@framers/sql-storage-adapter` interface as the brain, so archive tables (`archived_traces`, `archive_access_log`) live in the same database file by default. Postgres, IndexedDB, Capacitor SQLite, and sql.js are all supported through the shared adapter substrate (see [The Storage Substrate](#the-storage-substrate-framerssql-storage-adapter) above).
 
 ---
 
@@ -681,7 +681,7 @@ The vendor table above measures accuracy at a matched reader. The table below me
 Single-CLI reproduction. The bench is source-only (clone and run via local CLI; not published to npm).
 
 ```bash
-git clone https://github.com/framersai/agentos-bench
+git clone https://github.com/framerslab/agentos-bench
 cd agentos-bench
 pnpm install
 pnpm build
@@ -714,7 +714,7 @@ NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsx src/cli.ts run longmemeva
 
 Expected wall-clock (S): ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI/Cohere fees.
 
-The same primitives ([`MemoryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), `ReaderRouter`) are re-exported through `@framers/agentos` so a consuming app gets the same routing decisions:
+The same primitives ([`MemoryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/memory/MemoryRouter.ts), `ReaderRouter`) are re-exported through `@framers/agentos` so a consuming app gets the same routing decisions:
 
 ```ts
 import { Memory } from '@framers/agentos';
@@ -743,7 +743,7 @@ For readers who want to trace the architecture into code:
 |---|---|
 | Memory facade | `packages/agentos/src/memory/io/facade/Memory.ts` |
 | Brain (SQLite + Postgres + adapter entry points) | `packages/agentos/src/memory/retrieval/store/Brain.ts` |
-| Storage adapter (cross-platform substrate) | [`packages/sql-storage-adapter/src/`](https://github.com/framersai/sql-storage-adapter/tree/master/src/) ([repo](https://github.com/framersai/sql-storage-adapter)) |
+| Storage adapter (cross-platform substrate) | [`packages/sql-storage-adapter/src/`](https://github.com/framerslab/sql-storage-adapter/tree/master/src/) ([repo](https://github.com/framerslab/sql-storage-adapter)) |
 | SQL Dialect / FTS abstraction / BLOB codec | `packages/sql-storage-adapter/src/dialect/`, `src/fts/`, `src/blob/` |
 | Cognitive memory orchestrator | `packages/agentos/src/memory/CognitiveMemoryManager.ts` |
 | Encoding model | `packages/agentos/src/memory/core/encoding/EncodingModel.ts` |
@@ -778,6 +778,6 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit`.
 - [Adaptive Memory Router](./ADAPTIVE_MEMORY_ROUTER.md) — self-calibration for non-LongMemEval workloads
 - [HyDE Retrieval](./memory/HYDE_RETRIEVAL.md), [Multimodal RAG](./memory/MULTIMODAL_RAG.md), [Memory Consolidation](./memory/MEMORY_CONSOLIDATION.md) — specialty topics
 - [SQLite Brain Storage](./memory/MEMORY_STORAGE.md), [Postgres + pgvector Backend](./memory/POSTGRES_BACKEND.md) — backend-specific schema, WAL/MVCC tradeoffs, multi-tenant patterns
-- [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter) — full storage substrate: adapter matrix, SQL dialect translation, FTS abstraction, BLOB codec, cross-platform sync
-- [Bench Leaderboard](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md) — full benchmark tables with confidence intervals and per-category breakdowns
+- [`@framers/sql-storage-adapter`](https://github.com/framerslab/sql-storage-adapter) — full storage substrate: adapter matrix, SQL dialect translation, FTS abstraction, BLOB codec, cross-platform sync
+- [Bench Leaderboard](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md) — full benchmark tables with confidence intervals and per-category breakdowns
 - [Transparency Audit](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) — what the headline numbers don't say (LOCOMO answer-key error, judge bias, vendor comparison gaming)

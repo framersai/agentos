@@ -1,16 +1,16 @@
 # RAG and Memory Configuration
 
-> **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper (Wu et al., ICLR 2025: round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framersai/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
+> **Memory benchmarks (full N=500, gpt-4o reader):** **85.6% on LongMemEval-S** at $0.0090 per correct, **+1.4 points above Mastra Observational Memory (84.23%)**. **70.2% on LongMemEval-M** on the 1.5M-token / 500-session haystack variant — the only open-source library on the public record above 65% on M with publicly reproducible methodology. Competitive with the strongest published M results in the LongMemEval paper (Wu et al., ICLR 2025: round Top-5 65.7%, session Top-5 71.4%, round Top-10 72.0%). [Benchmarks](https://docs.agentos.sh/benchmarks) · [Run JSONs](https://github.com/framerslab/agentos-bench/tree/master/results/runs) · [SOTA writeup](https://agentos.sh/en/blog/agentos-memory-sota-longmemeval/)
 
 AgentOS provides three levels of memory API:
 
 1. **`Memory`** — Primary SQLite-first facade for persistent local memory, ingestion, import/export, graph memory, and self-improving consolidation.
-2. **[`AgentMemory`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/AgentMemory.ts)** — Compatibility facade that can wrap either [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) or the standalone `Memory` engine.
-3. **Low-level RAG primitives** — [`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts), [`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts), [`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts), [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts), [`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts) for custom pipelines.
+2. **[`AgentMemory`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/AgentMemory.ts)** — Compatibility facade that can wrap either [`CognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) or the standalone `Memory` engine.
+3. **Low-level RAG primitives** — [`EmbeddingManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts), [`VectorStoreManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts), [`RetrievalAugmentor`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts), [`UnifiedRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts), [`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts) for custom pipelines.
 
 `Memory.create()` currently supports the SQLite-backed standalone memory facade at runtime. Postgres, Qdrant, Pinecone, and other backends are available through the lower-level RAG/vector-store layer.
 
-Runtime truth: `ragConfig` and the standard AgentOS bootstrap still create the classic [`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts) path. [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) exists as an opt-in orchestration layer for hosts that explicitly wire it in.
+Runtime truth: `ragConfig` and the standard AgentOS bootstrap still create the classic [`RetrievalAugmentor`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts) path. [`UnifiedRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) exists as an opt-in orchestration layer for hosts that explicitly wire it in.
 
 ![AgentOS RAG memory pipeline: ingestion lane feeds five swappable storage backends; retrieval lane runs hybrid dense plus sparse search, RRF fusion, optional Cohere rerank, and Top-K context into prompt assembly](/img/diagrams/rag-memory-pipeline.svg)
 
@@ -54,7 +54,7 @@ await agentos.getExtensionManager().loadPackFromFactory(
 );
 ```
 
-If you already bootstrap [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts), you can auto-load the same pack directly
+If you already bootstrap [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts), you can auto-load the same pack directly
 from `AgentOS.initialize()`:
 
 ```ts
@@ -72,7 +72,7 @@ const agentos = await AgentOS.create({
 ```
 
 `manageLifecycle` is optional. Leave it unset when your app owns the
-`Memory` instance and closes it outside [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts).
+`Memory` instance and closes it outside [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts).
 
 `memoryTools` only registers the tool pack. It does not automatically make the
 same `Memory` instance the prompt-time `longTermMemoryRetriever` or
@@ -145,7 +145,7 @@ const rawManager = cognitive.raw;
 const rawMemory = memory.rawMemory;
 ```
 
-Use `Memory` directly for most local-first or ingestion-heavy workloads. Use [`AgentMemory`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/AgentMemory.ts) when you want a compatibility facade across both backends, or when you specifically need cognitive-only APIs such as `observe()`, `getContext()`, or `remind()`.
+Use `Memory` directly for most local-first or ingestion-heavy workloads. Use [`AgentMemory`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/AgentMemory.ts) when you want a compatibility facade across both backends, or when you specifically need cognitive-only APIs such as `observe()`, `getContext()`, or `remind()`.
 
 ## Observational Memory
 
@@ -161,7 +161,7 @@ Recent Messages (raw conversation turns)
 
 1. **ObservationBuffer** accumulates every message fed via `observe()`. It tracks approximate token count (~4 chars/token).
 2. **MemoryObserver** activates when the buffer reaches **30,000 tokens**. It sends buffered messages to a cheap LLM, which extracts typed observation notes (`factual`, `emotional`, `commitment`, `preference`, `creative`, `correction`). The LLM prompt is biased by the agent's HEXACO personality traits — high Emotionality focuses on tone shifts, high Conscientiousness on deadlines, high Openness on creative tangents.
-3. **MemoryReflector** accumulates observation notes. When they exceed **40,000 tokens**, it consolidates them into long-term [`MemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) objects with 5-40x compression. Conflict resolution is personality-driven: high Honesty prefers newer information and supersedes old traces; high Agreeableness keeps both versions.
+3. **MemoryReflector** accumulates observation notes. When they exceed **40,000 tokens**, it consolidates them into long-term [`MemoryTrace`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) objects with 5-40x compression. Conflict resolution is personality-driven: high Honesty prefers newer information and supersedes old traces; high Agreeableness keeps both versions.
 
 ### Integration with RAG
 
@@ -183,7 +183,7 @@ Internally, `CognitiveMemoryManager.observe()` orchestrates the full pipeline: b
 
 ### Configuration
 
-Enable observational memory in [`CognitiveMemoryConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/config.ts):
+Enable observational memory in [`CognitiveMemoryConfig`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/config.ts):
 
 ```ts
 await memory.initialize({
@@ -207,12 +207,12 @@ In persona JSON, the observer/reflector activate automatically when `memoryConfi
 
 The concrete RAG APIs live under `@framers/agentos/cognition/rag`:
 
-- **[`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts)** — Text → vector embeddings (OpenAI, Ollama, custom providers)
-- **[`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts)** — HNSW/InMemory vector storage with similarity search
+- **[`EmbeddingManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts)** — Text → vector embeddings (OpenAI, Ollama, custom providers)
+- **[`VectorStoreManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts)** — HNSW/InMemory vector storage with similarity search
 - **`RetrievalAugmentor`** — Default runtime RAG pipeline for embedding + search + context assembly
 - **`UnifiedRetriever`** — Opt-in plan-aware orchestration across multiple retrieval sources
-- **[`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts)** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
-- **[`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts)** — TypeScript-native graph-based RAG with knowledge graph traversal
+- **[`HydeRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/HydeRetriever.ts)** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
+- **[`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts)** — TypeScript-native graph-based RAG with knowledge graph traversal
 
 For most standalone and local-first use cases, prefer `Memory`. Use `AgentMemory` when you need the compatibility layer or the cognitive observer/reflector APIs.
 
@@ -475,16 +475,16 @@ console.log(result.augmentedContext);
 
 AgentOS currently ships these vector-store implementations:
 
-- [`InMemoryVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/InMemoryVectorStore.ts) (ephemeral, dev/testing)
-- [`SqlVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/SqlVectorStore.ts) (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
-- [`HnswlibVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts) (ANN search via `hnswlib-node`, optional peer dependency; optional file persistence via `persistDirectory`)
-- [`QdrantVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
+- [`InMemoryVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/InMemoryVectorStore.ts) (ephemeral, dev/testing)
+- [`SqlVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/SqlVectorStore.ts) (persistent via `@framers/sql-storage-adapter`; embeddings stored as JSON blobs; optional SQLite FTS for hybrid)
+- [`HnswlibVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/HnswlibVectorStore.ts) (ANN search via `hnswlib-node`, optional peer dependency; optional file persistence via `persistDirectory`)
+- [`QdrantVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) (remote/self-hosted Qdrant via HTTP; optional BM25 sparse vectors + hybrid fusion)
 
 If you want “true” large-scale vector DB behavior (tens of millions of vectors, filtered search at scale, etc.), add a provider implementation and wire it into `VectorStoreManager`.
 
 ### Qdrant Provider (Remote or Self-Hosted)
 
-[`QdrantVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) lets you point AgentOS at a Qdrant instance (local Docker or managed cloud) without changing any higher-level RAG code.
+[`QdrantVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/QdrantVectorStore.ts) lets you point AgentOS at a Qdrant instance (local Docker or managed cloud) without changing any higher-level RAG code.
 
 Example `VectorStoreManager` provider config:
 
@@ -625,7 +625,7 @@ Notes:
 
 ## Reranking and the Reranker Chain {#reranker-chain}
 
-If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS initializes [`RerankerService`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/reranking/RerankerService.ts) and auto-registers built-in providers declared in config: `cohere` (requires `apiKey`) and `local` (offline cross-encoder, requires Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`). Reranking is opt-in per request via `RagRetrievalOptions.rerankerConfig.enabled=true`.
+If `RetrievalAugmentorServiceConfig.rerankerServiceConfig` is provided, AgentOS initializes [`RerankerService`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/reranking/RerankerService.ts) and auto-registers built-in providers declared in config: `cohere` (requires `apiKey`) and `local` (offline cross-encoder, requires Transformers.js: `@huggingface/transformers` preferred, or `@xenova/transformers`). Reranking is opt-in per request via `RagRetrievalOptions.rerankerConfig.enabled=true`.
 
 AgentOS supports chaining multiple reranking providers into a sequential pipeline. Each stage narrows the result set, producing progressively higher-quality rankings:
 
@@ -699,7 +699,7 @@ const results = await service.rerankChain('quantum computing', chunks, [
 
 ### Memory retrieval reranking
 
-The reranker chain integrates with the [Cognitive Memory System](./COGNITIVE_MEMORY.md). When a [`RerankerService`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/reranking/RerankerService.ts) is passed to [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) via the `rerankerService` config field, it runs a neural reranking pass after the cognitive scoring pipeline:
+The reranker chain integrates with the [Cognitive Memory System](./COGNITIVE_MEMORY.md). When a [`RerankerService`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/reranking/RerankerService.ts) is passed to [`CognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) via the `rerankerService` config field, it runs a neural reranking pass after the cognitive scoring pipeline:
 
 ```typescript
 import { CognitiveMemoryManager } from '@framers/agentos/memory';
@@ -801,7 +801,7 @@ Phase 2 iterates. Each iteration searches, extracts, analyzes gaps, and optional
 | `moderate` | 3                  | 20           | 10              | 8             | 2 min      |
 | `deep`     | 6                  | 50           | 25              | 20            | 9 min      |
 
-A [`ResearchBudgetTracker`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts) enforces hard caps on all dimensions. When any budget is exhausted, the engine moves to synthesis with whatever findings it has.
+A [`ResearchBudgetTracker`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts) enforces hard caps on all dimensions. When any budget is exhausted, the engine moves to synthesis with whatever findings it has.
 
 ### LLM-as-Judge Auto-Classifier
 
@@ -923,13 +923,13 @@ Setting `minDepthToInject: "moderate"` means queries classified as `quick` are a
 | File                                                                                                      | Purpose                      |
 | --------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `packages/wunderland/src/runtime/research-classifier.ts`                                                  | LLM-as-judge classifier      |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchTool.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/DeepResearchTool.ts)      | ITool wrapper for the engine |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchEngine.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/DeepResearchEngine.ts)    | Core research pipeline       |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts) | Budget enforcement           |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/types.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/types.ts)                 | Type definitions             |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/investigate.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/investigate.ts)            | researchInvestigate tool     |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/academic.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/academic.ts)               | researchAcademic tool        |
-| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/aggregate.ts`](https://github.com/framersai/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/aggregate.ts)              | researchAggregate tool       |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchTool.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/DeepResearchTool.ts)      | ITool wrapper for the engine |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/DeepResearchEngine.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/DeepResearchEngine.ts)    | Core research pipeline       |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/ResearchBudgetTracker.ts) | Budget enforcement           |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/engine/types.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/engine/types.ts)                 | Type definitions             |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/investigate.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/investigate.ts)            | researchInvestigate tool     |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/academic.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/academic.ts)               | researchAcademic tool        |
+| [`packages/agentos-extensions/registry/curated/research/deep-research/src/tools/aggregate.ts`](https://github.com/framerslab/agentos-extensions/blob/master/registry/curated/research/deep-research/src/tools/aggregate.ts)              | researchAggregate tool       |
 
 ### Related
 

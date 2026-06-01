@@ -8,7 +8,7 @@ A **Generalized Mind Instance** — GMI — is the unit of agent state in AgentO
 
 ![GMI architecture: a thin coordinator class that delegates per-turn work to four close collaborators (ConversationHistoryManager, CognitiveMemoryBridge, SentimentTracker, MetapromptExecutor) and seven injected services (WorkingMemory, PromptEngine, ToolOrchestrator, LLMProviderManager, UtilityAI, CognitiveMemoryManager, optional RetrievalAugmentor). The GMI core itself owns persona, current mood, user context, task context, and reasoning trace, but never does retrieval, generation, or tool dispatch directly.](/img/diagrams/gmi-architecture.svg)
 
-This page is an honest tour of the abstraction. Most descriptions of GMIs you'll see — including the concentric-ring diagram on [agentos.sh](https://agentos.sh) — are presentation. The presentation is useful but it isn't the architecture. The architecture is a delegation pattern: a coordinator class with a dozen specialized collaborators, each owning one concern. Below is what's actually in the source tree at [`packages/agentos/src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts).
+This page is an honest tour of the abstraction. Most descriptions of GMIs you'll see — including the concentric-ring diagram on [agentos.sh](https://agentos.sh) — are presentation. The presentation is useful but it isn't the architecture. The architecture is a delegation pattern: a coordinator class with a dozen specialized collaborators, each owning one concern. Below is what's actually in the source tree at [`packages/agentos/src/cognition/substrate/GMI.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMI.ts).
 
 ## The shortest useful example
 
@@ -42,7 +42,7 @@ Three things to notice:
 
 ## What a GMI is composed of
 
-The class definition tells the cleanest story. From [`GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) (trimmed):
+The class definition tells the cleanest story. From [`GMI.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMI.ts) (trimmed):
 
 ```typescript
 export class GMI implements IGMI {
@@ -78,22 +78,22 @@ Each name is doing one specific thing:
 
 | Collaborator | What it owns |
 |---|---|
-| [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts) | The turn buffer for the active session. Compacts old turns when the window fills. |
-| [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts) | The connection to long-term cognitive memory: encoding new traces, fetching old ones, applying decay. |
-| [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts) | Analyzes user sentiment per turn and fires [`GMIEvent`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIEvent.ts)s when patterns cross thresholds — those events trigger event-based metaprompt updates. |
-| [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) | Assembles the system prompt every turn from persona, traits, mood, retrieved memories, and active skills. |
-| [`IPromptEngine`](https://github.com/framersai/agentos/blob/master/src/core/llm/IPromptEngine.ts) | Interpolates messages and tool schemas into the final wire-format payload for the LLM. |
-| [`IToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/IToolOrchestrator.ts) | Decides which tools to expose this turn, runs them, returns results. |
-| [`IRetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/IRetrievalAugmentor.ts) | RAG retrieval over corpora that aren't memory (docs, web search, etc.). |
-| [`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) | Routes the call to the configured provider, with fallback to others on failure. |
-| [`IUtilityAI`](https://github.com/framersai/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts) | Smaller model jobs that don't need the main provider — JSON parsing, summarization, observations. |
-| [`ICognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) | The actual memory store with the eight cognitive mechanisms (next section). |
+| [`ConversationHistoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts) | The turn buffer for the active session. Compacts old turns when the window fills. |
+| [`CognitiveMemoryBridge`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts) | The connection to long-term cognitive memory: encoding new traces, fetching old ones, applying decay. |
+| [`SentimentTracker`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts) | Analyzes user sentiment per turn and fires [`GMIEvent`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIEvent.ts)s when patterns cross thresholds — those events trigger event-based metaprompt updates. |
+| [`MetapromptExecutor`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) | Assembles the system prompt every turn from persona, traits, mood, retrieved memories, and active skills. |
+| [`IPromptEngine`](https://github.com/framerslab/agentos/blob/master/src/core/llm/IPromptEngine.ts) | Interpolates messages and tool schemas into the final wire-format payload for the LLM. |
+| [`IToolOrchestrator`](https://github.com/framerslab/agentos/blob/master/src/core/tools/IToolOrchestrator.ts) | Decides which tools to expose this turn, runs them, returns results. |
+| [`IRetrievalAugmentor`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/IRetrievalAugmentor.ts) | RAG retrieval over corpora that aren't memory (docs, web search, etc.). |
+| [`AIModelProviderManager`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) | Routes the call to the configured provider, with fallback to others on failure. |
+| [`IUtilityAI`](https://github.com/framerslab/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts) | Smaller model jobs that don't need the main provider — JSON parsing, summarization, observations. |
+| [`ICognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) | The actual memory store with the eight cognitive mechanisms (next section). |
 
-Lifecycle is owned by [`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — it constructs GMIs, hands them their persona and config, tracks active instances by ID, and routes session-to-GMI mappings. When you build an agency of multiple GMIs, the manager is the registry that knows which mind owns which session.
+Lifecycle is owned by [`GMIManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — it constructs GMIs, hands them their persona and config, tracks active instances by ID, and routes session-to-GMI mappings. When you build an agency of multiple GMIs, the manager is the registry that knows which mind owns which session.
 
 ## The eight cognitive memory mechanisms
 
-This is where the runtime stops looking like a thin wrapper around a chat API. From [`src/memory/mechanisms/defaults.ts`](https://github.com/framersai/agentos/blob/master/src/memory/mechanisms/defaults.ts), the eight mechanisms that operate on memory traces:
+This is where the runtime stops looking like a thin wrapper around a chat API. From [`src/memory/mechanisms/defaults.ts`](https://github.com/framerslab/agentos/blob/master/src/memory/mechanisms/defaults.ts), the eight mechanisms that operate on memory traces:
 
 | Mechanism | What it does |
 |---|---|
@@ -112,11 +112,11 @@ The Ebbinghaus decay curve sits underneath all of this as the base decay model. 
 
 ## Retrieval is layered, not just embedding similarity
 
-When a GMI needs to remember something, it doesn't run a single nearest-neighbor query. From [`CognitiveMemoryManager.retrieve()`](https://github.com/framersai/agentos/blob/master/src/memory/CognitiveMemoryManager.ts):
+When a GMI needs to remember something, it doesn't run a single nearest-neighbor query. From [`CognitiveMemoryManager.retrieve()`](https://github.com/framerslab/agentos/blob/master/src/memory/CognitiveMemoryManager.ts):
 
-1. **(Optional) HyDE hypothesis.** When `options.hyde` is on (or the active policy says always), [`MemoryHydeRetriever`](https://github.com/framersai/agentos/blob/master/src/memory/retrieval/hyde/MemoryHydeRetriever.ts) prompts an LLM to generate a plausible memory the GMI *would* have stored about the query. The hypothesis embedding is then used as the search vector, because it sits closer to actual stored traces than a raw query like *"that deployment thing last week"*. The source comments explicitly tie this to the **generation effect** in cognitive science.
-2. **Composite-scored vector query.** Each candidate gets a weighted score combining current strength, embedding similarity, recency, emotional congruence with the user's mood, and importance. The default weights live in [`CognitiveMemoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) and can be overridden per policy.
-3. **Spreading activation over the graph.** When a Neo4j graph backend is configured, the top-5 results seed a spreading-activation pass through [`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/memory/retrieval/graph/graphrag/GraphRAGEngine.ts). Connected memories get a boost; the result set is re-sorted; co-activation is recorded for Hebbian-style learning so frequently-co-recalled memories link tighter over time.
+1. **(Optional) HyDE hypothesis.** When `options.hyde` is on (or the active policy says always), [`MemoryHydeRetriever`](https://github.com/framerslab/agentos/blob/master/src/memory/retrieval/hyde/MemoryHydeRetriever.ts) prompts an LLM to generate a plausible memory the GMI *would* have stored about the query. The hypothesis embedding is then used as the search vector, because it sits closer to actual stored traces than a raw query like *"that deployment thing last week"*. The source comments explicitly tie this to the **generation effect** in cognitive science.
+2. **Composite-scored vector query.** Each candidate gets a weighted score combining current strength, embedding similarity, recency, emotional congruence with the user's mood, and importance. The default weights live in [`CognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) and can be overridden per policy.
+3. **Spreading activation over the graph.** When a Neo4j graph backend is configured, the top-5 results seed a spreading-activation pass through [`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/memory/retrieval/graph/graphrag/GraphRAGEngine.ts). Connected memories get a boost; the result set is re-sorted; co-activation is recorded for Hebbian-style learning so frequently-co-recalled memories link tighter over time.
 4. **(Optional) neural reranking.** When a Cohere or LLM-judge reranker is plugged in, the cognitive composite is blended 0.7 cognitive / 0.3 neural — preserving decay, mood, and graph signals while letting a cross-encoder catch what the bi-encoder missed.
 
 This is the layer cake the GMI sits on top of. The point isn't that "GraphRAG fallback when semantic fails" — that's a marketing simplification. The point is that each retrieval is a composite query whose score blends multiple cognitive signals, and the graph and reranker enrich that composite when they're available.
@@ -136,11 +136,11 @@ The first is interpretation. The second is mechanism. Both matter, but they're n
 
 ## Multi-GMI: agency
 
-A single GMI is a mind. An **agency** is a set of GMIs collaborating on a goal. Agency is in [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency):
+A single GMI is a mind. An **agency** is a set of GMIs collaborating on a goal. Agency is in [`src/agents/agency/`](https://github.com/framerslab/agentos/tree/master/src/agents/agency):
 
-- [`AgencyRegistry`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyRegistry.ts) — tracks active agencies and the GMIs they contain.
-- [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts) — shared memory across the agency's GMIs (separate from each GMI's private cognitive memory).
-- [`AgentCommunicationBus`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts) — the message channel GMIs use to coordinate.
+- [`AgencyRegistry`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgencyRegistry.ts) — tracks active agencies and the GMIs they contain.
+- [`AgencyMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts) — shared memory across the agency's GMIs (separate from each GMI's private cognitive memory).
+- [`AgentCommunicationBus`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgentCommunicationBus.ts) — the message channel GMIs use to coordinate.
 
 Each GMI in an agency keeps its own persona, traits, and cognitive memory. The agency adds a coordination layer on top. When you write `agency({...agents})`, the runtime spins up the registry, wires up the communication bus, and lets the orchestration strategy (sequential, parallel, debate, hierarchical, review-loop, graph) decide who runs when.
 
@@ -148,7 +148,7 @@ When the strategy is `'hierarchical'` and `emergent.enabled` is true, the manage
 
 ## Streaming output
 
-`session.send()` returns a final reply. `session.stream()` returns an async iterable of typed chunks. The chunk types from [`IGMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/IGMI.ts):
+`session.send()` returns a final reply. `session.stream()` returns an async iterable of typed chunks. The chunk types from [`IGMI.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/IGMI.ts):
 
 ```typescript
 export enum GMIOutputChunkType {
@@ -164,26 +164,26 @@ export enum GMIOutputChunkType {
 }
 ```
 
-[`GMIChunkTransformer`](https://github.com/framersai/agentos/blob/master/src/api/runtime/GMIChunkTransformer.ts) maps these into the public [`AgentOSResponseChunkType`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts). If you're building a UI on top of a GMI, you wire reactions to these types: stream the text deltas as they arrive, render tool calls as they fire, surface reasoning state if you're showing the GMI's thinking, finalize on the response marker. Memory formation events surface separately through the memory bridge.
+[`GMIChunkTransformer`](https://github.com/framerslab/agentos/blob/master/src/api/runtime/GMIChunkTransformer.ts) maps these into the public [`AgentOSResponseChunkType`](https://github.com/framerslab/agentos/blob/master/src/api/types/AgentOSResponse.ts). If you're building a UI on top of a GMI, you wire reactions to these types: stream the text deltas as they arrive, render tool calls as they fire, surface reasoning state if you're showing the GMI's thinking, finalize on the response marker. Memory formation events surface separately through the memory bridge.
 
 ## What the homepage diagram is and isn't
 
 The seven-ring diagram on [agentos.sh](https://agentos.sh) is a visualization of *capabilities*, not architecture. The rings — channels, guardrails, tools, orchestration, memory, personality, LLM core — are useful as a mental model: the outer ones are surface area, the inner ones are cognitive substrate. They map roughly to actual collaborators in the source, but not one-to-one. The diagram exists to make a marketing point that lands in three seconds. The class structure exists to make the runtime maintainable. Both are doing different work.
 
-If you came here looking for the seven layers as load-bearing architecture, you won't find them in the source. What you'll find is a delegation hub (the [`GMI`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) class), a lifecycle manager ([`GMIManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts)), and the dozen specialized collaborators in the table above. That's the real shape.
+If you came here looking for the seven layers as load-bearing architecture, you won't find them in the source. What you'll find is a delegation hub (the [`GMI`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMI.ts) class), a lifecycle manager ([`GMIManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIManager.ts)), and the dozen specialized collaborators in the table above. That's the real shape.
 
 ## Where things live
 
 Quick map for navigating the source:
 
-- [`src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
-- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
-- [`src/cognition/substrate/personas/`](https://github.com/framersai/agentos/tree/master/src/cognition/substrate/personas) — persona definitions and loaders
-- [`src/cognition/substrate/persona_overlays/`](https://github.com/framersai/agentos/tree/master/src/cognition/substrate/persona_overlays) — per-session persona overlays
-- [`src/memory/mechanisms/`](https://github.com/framersai/agentos/tree/master/src/memory/mechanisms) — the eight cognitive mechanisms + persona drift
-- [`src/memory/retrieval/`](https://github.com/framersai/agentos/tree/master/src/memory/retrieval) — semantic, HyDE, GraphRAG retrieval
-- [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination
-- [`src/api/`](https://github.com/framersai/agentos/tree/master/src/api) — the public `agent()`, `agency()`, `generateText()`, `streamText()` helpers
+- [`src/cognition/substrate/GMI.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
+- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
+- [`src/cognition/substrate/personas/`](https://github.com/framerslab/agentos/tree/master/src/cognition/substrate/personas) — persona definitions and loaders
+- [`src/cognition/substrate/persona_overlays/`](https://github.com/framerslab/agentos/tree/master/src/cognition/substrate/persona_overlays) — per-session persona overlays
+- [`src/memory/mechanisms/`](https://github.com/framerslab/agentos/tree/master/src/memory/mechanisms) — the eight cognitive mechanisms + persona drift
+- [`src/memory/retrieval/`](https://github.com/framerslab/agentos/tree/master/src/memory/retrieval) — semantic, HyDE, GraphRAG retrieval
+- [`src/agents/agency/`](https://github.com/framerslab/agentos/tree/master/src/agents/agency) — multi-GMI coordination
+- [`src/api/`](https://github.com/framerslab/agentos/tree/master/src/api) — the public `agent()`, `agency()`, `generateText()`, `streamText()` helpers
 
 ## What this means in practice
 
@@ -195,7 +195,7 @@ The moment a real production deployment surfaces a hard question — *why does m
 
 - [System Architecture](/architecture/system-architecture) — full module layout and request lifecycle
 - [Cognitive Memory](/features/cognitive-memory) — encoding, decay, and retrieval mechanics in depth
-- [Adaptive Prompt Intelligence](/features/adaptive-prompt-intelligence) — the per-turn metaprompt loop the [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) runs, trigger types, presets, state surfaces, and cost numbers
+- [Adaptive Prompt Intelligence](/features/adaptive-prompt-intelligence) — the per-turn metaprompt loop the [`MetapromptExecutor`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts) runs, trigger types, presets, state surfaces, and cost numbers
 - [Skills vs Tools vs Extensions](/architecture/skills-vs-tools-vs-extensions) — when each capability system applies
 - [Emergent Capabilities](/features/emergent-capabilities) — runtime tool forging and `spawn_specialist` for multi-agent gap-filling
 - [Guardrails](/features/guardrails) — how guardrails actually intercept tool calls and generation
@@ -224,8 +224,8 @@ The eight cognitive memory mechanisms enumerated in this page draw on classical 
 
 ### Implementation references
 
-- [`src/cognition/substrate/GMI.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
-- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
-- [`src/api/types.ts`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) — [`AgencyOptions`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`AgencyStrategy`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`EmergentConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), [`EmergentPlannerConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts)
-- [`src/agents/agency/`](https://github.com/framersai/agentos/tree/master/src/agents/agency) — multi-GMI coordination classes
-- [`src/emergent/`](https://github.com/framersai/agentos/tree/master/src/emergent) — emergent tool and agent forge primitives
+- [`src/cognition/substrate/GMI.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMI.ts) — the class itself
+- [`src/cognition/substrate/GMIManager.ts`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIManager.ts) — lifecycle
+- [`src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) — [`AgencyOptions`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts), [`AgencyStrategy`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts), [`EmergentConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts), [`EmergentPlannerConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts)
+- [`src/agents/agency/`](https://github.com/framerslab/agentos/tree/master/src/agents/agency) — multi-GMI coordination classes
+- [`src/emergent/`](https://github.com/framerslab/agentos/tree/master/src/emergent) — emergent tool and agent forge primitives

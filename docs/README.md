@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@framers/agentos"><img src="https://img.shields.io/npm/v/@framers/agentos?logo=npm&color=cb3837" alt="npm"></a>
-  <a href="https://github.com/framersai/agentos"><img src="https://img.shields.io/github/stars/framersai/agentos?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/framerslab/agentos"><img src="https://img.shields.io/github/stars/framersai/agentos?style=social" alt="GitHub stars"></a>
   <a href="https://agentos.sh"><img src="https://img.shields.io/badge/docs-agentos.sh-00d4ff" alt="Documentation"></a>
 </p>
 
@@ -35,7 +35,7 @@
 #### Planning & Orchestration
 
 - [**Orchestration Guide**](./orchestration/ORCHESTRATION.md) — Graphs, workflows, missions, voice nodes, checkpointing, YAML authoring
-- [**Unified Orchestration Layer**](./orchestration/UNIFIED_ORCHESTRATION.md) — One runtime, three authoring APIs ([`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, `mission()`)
+- [**Unified Orchestration Layer**](./orchestration/UNIFIED_ORCHESTRATION.md) — One runtime, three authoring APIs ([`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, `mission()`)
 - [**AgentGraph**](./architecture/AGENT_GRAPH.md) — Full graph builder with typed nodes, conditional edges, and subgraphs
 - [**workflow() DSL**](./orchestration/WORKFLOW_DSL.md) — Deterministic DAG pipelines with branching and parallel joins
 - [**mission() API**](./orchestration/MISSION_API.md) — Goal-first orchestration driven by the PlanningEngine
@@ -104,10 +104,10 @@
 | Resource    | Link                                                                   |
 | ----------- | ---------------------------------------------------------------------- |
 | Website     | [agentos.sh](https://agentos.sh)                                       |
-| GitHub      | [framersai/agentos](https://github.com/framersai/agentos)              |
+| GitHub      | [framersai/agentos](https://github.com/framerslab/agentos)              |
 | npm         | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos)     |
-| Issues      | [GitHub Issues](https://github.com/framersai/agentos/issues)           |
-| Discussions | [GitHub Discussions](https://github.com/framersai/agentos/discussions) |
+| Issues      | [GitHub Issues](https://github.com/framerslab/agentos/issues)           |
+| Discussions | [GitHub Discussions](https://github.com/framerslab/agentos/discussions) |
 
 ---
 
@@ -122,5 +122,5 @@
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://frame.dev">Frame.dev</a> · <a href="https://github.com/framersai">@framersai</a></sub>
+  <sub>Built by <a href="https://frame.dev">Frame.dev</a> · <a href="https://github.com/framerslab">@framersai</a></sub>
 </p>

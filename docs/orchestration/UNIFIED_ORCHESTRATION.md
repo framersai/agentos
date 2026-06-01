@@ -4,7 +4,7 @@ Three authoring APIs. One compiled intermediate representation. A single runtime
 
 ## Architecture
 
-Every orchestration surface in AgentOS — [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, and `mission()` — compiles to the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) IR. The [`GraphRuntime`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts) executes that IR regardless of which API produced it.
+Every orchestration surface in AgentOS — [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), `workflow()`, and `mission()` — compiles to the same [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) IR. The [`GraphRuntime`](https://github.com/framerslab/agentos/blob/master/src/orchestration/runtime/GraphRuntime.ts) executes that IR regardless of which API produced it.
 
 ```mermaid
 graph TD
@@ -121,7 +121,7 @@ const m = mission('deep-research')
 | Situation | Use |
 | --- | --- |
 | Exact steps known upfront | `workflow()` |
-| Steps known but complex branching needed | [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) |
+| Steps known but complex branching needed | [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) |
 | Goal-first authoring with a fixed mission skeleton today | `mission()` |
 | Need agent loops / cycles | `AgentGraph` |
 | Cost-bounded, deterministic execution | `workflow()` |

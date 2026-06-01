@@ -202,7 +202,7 @@ const result = await manager.generate({
 | `email` | Email address |
 | `uri` | Full URI |
 | `uri-reference` | URI or relative reference |
-| [`uuid`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/core/util/crossPlatformCrypto.ts) | UUID v4 |
+| [`uuid`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/util/crossPlatformCrypto.ts) | UUID v4 |
 | `date-time` | ISO 8601 datetime |
 | `date` | ISO 8601 date |
 | `time` | ISO 8601 time |

@@ -23,7 +23,7 @@ AgentOS benchmark numbers tell the full story:
 Rule of thumb: turn HyDE on when the haystack is too big for the answer model's
 context window and you need recall improvements on multi-hop / synthesis
 questions. Leave it off for single-session and tight-latency paths. See
-[`agentos-bench`](https://github.com/framersai/agentos-bench) for the full
+[`agentos-bench`](https://github.com/framerslab/agentos-bench) for the full
 ablation table.
 
 Based on:
@@ -62,7 +62,7 @@ producing higher cosine similarity scores.
 
 ### agent.config.json
 
-HyDE is configured per-request, not globally. The [`HydeRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/HydeRetriever.ts) class and
+HyDE is configured per-request, not globally. The [`HydeRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/HydeRetriever.ts) class and
 its config types are exported from `@framers/agentos/cognition/rag`.
 
 ```json

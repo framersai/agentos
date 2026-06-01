@@ -80,7 +80,7 @@ const results = await store.hybridSearch(
 
 ## Lifecycle-friendly metadata scans
 
-Qdrant also supports `scanByMetadata()` in the AgentOS vector-store contract. That allows [`MemoryLifecycleManager`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/pipeline/lifecycle/MemoryLifecycleManager.ts) to enumerate retention/decay candidates by payload filter instead of relying on placeholder discovery logic.
+Qdrant also supports `scanByMetadata()` in the AgentOS vector-store contract. That allows [`MemoryLifecycleManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/pipeline/lifecycle/MemoryLifecycleManager.ts) to enumerate retention/decay candidates by payload filter instead of relying on placeholder discovery logic.
 
 ## Collection-per-agent isolation
 
@@ -97,7 +97,7 @@ Collections are fully isolated. Deleting one agent's collection does not affect 
 
 Qdrant is a vector database — it stores embeddings and payload metadata. Non-vector data that the memory system needs (knowledge graph nodes/edges, consolidation logs, retrieval feedback, conversation history) lives in a **sidecar SQLite file**.
 
-The sidecar is the same [`Brain`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) used by the default SQLite backend, minus the embedding column (which lives in Qdrant). This means:
+The sidecar is the same [`Brain`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) used by the default SQLite backend, minus the embedding column (which lives in Qdrant). This means:
 
 - Knowledge graph queries (entity lookup, relation traversal) stay fast (local SQLite).
 - Vector queries go through Qdrant's optimized HNSW index.

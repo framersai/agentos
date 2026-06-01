@@ -76,7 +76,7 @@ To set up `NPM_TOKEN`:
 
 You can also trigger a release manually with a dry-run option:
 
-1. Go to [Actions → Release](https://github.com/framersai/agentos/actions/workflows/release.yml)
+1. Go to [Actions → Release](https://github.com/framerslab/agentos/actions/workflows/release.yml)
 2. Click **"Run workflow"**
 3. (Optional) Check "Dry run" to see what would be released without publishing
 4. Click **"Run workflow"**
@@ -127,4 +127,4 @@ releaseRules: [
 - [Conventional Commits](https://www.conventionalcommits.org/) — Commit message format
 - [Semantic Release](https://semantic-release.gitbook.io/) — Release automation
 - [CHANGELOG.md](../CHANGELOG.md) — Release history
-- [GitHub Actions](https://github.com/framersai/agentos/actions) — CI/CD status
+- [GitHub Actions](https://github.com/framerslab/agentos/actions) — CI/CD status

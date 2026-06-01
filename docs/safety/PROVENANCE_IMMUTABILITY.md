@@ -50,7 +50,7 @@ If you enable `sealed` storage policy and persist conversations, your persistenc
 
 In this monorepo:
 
-- `ConversationManagerConfig.appendOnlyPersistence=true` makes the built-in [`ConversationManager`](https://github.com/framersai/agentos/blob/master/src/core/conversation/ConversationManager.ts) insert-only for `conversations` + `conversation_messages` and disables deletion.
+- `ConversationManagerConfig.appendOnlyPersistence=true` makes the built-in [`ConversationManager`](https://github.com/framerslab/agentos/blob/master/src/core/conversation/ConversationManager.ts) insert-only for `conversations` + `conversation_messages` and disables deletion.
 - `backend/src/integrations/agentos/agentos.integration.ts` automatically enables `appendOnlyPersistence` when a sealed provenance profile is active.
 
 ## Toolset Pinning (Recommended)

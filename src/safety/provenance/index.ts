@@ -7,7 +7,7 @@
  *
  * External anchor providers (Rekor, Ethereum, Solana, OpenTimestamps, WORM) are in the
  * `@framers/agentos-ext-anchor-providers` extension package.
- * See: https://github.com/framersai/agentos-extensions/tree/master/registry/curated/provenance/anchor-providers
+ * See: https://github.com/framerslab/agentos-extensions/tree/master/registry/curated/provenance/anchor-providers
  *
  * @module AgentOS/Provenance
  */

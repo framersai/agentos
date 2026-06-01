@@ -5,10 +5,10 @@
   "homepage": "https://agentos.sh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/framersai/agentos.git"
+    "url": "git+https://github.com/framerslab/agentos.git"
   },
   "bugs": {
-    "url": "https://github.com/framersai/agentos/issues"
+    "url": "https://github.com/framerslab/agentos/issues"
   },
   "type": "module",
   "main": "dist/index.js",

@@ -8,7 +8,7 @@ wiring bespoke model IDs for every surface.
 
 This document covers:
 
-- Text generation (`generateText`, `generateObject`, [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts))
+- Text generation (`generateText`, `generateObject`, [`streamText`](https://github.com/framerslab/agentos/blob/master/src/api/streamText.ts))
 - Image generation (`generateImage`)
 - Image editing (`editImage`)
 - The underlying model catalog and how to extend it
@@ -29,8 +29,8 @@ instructions for weapons, explosives, or poisons.
 
 ## Text — uncensored chat and structured output
 
-Set `policyTier` on any text call. The [`PolicyAwareRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) picks from the
-[`UncensoredModelCatalog`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts) (Hermes 3, Dolphin, MythoMax on OpenRouter) and
+Set `policyTier` on any text call. The [`PolicyAwareRouter`](https://github.com/framerslab/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) picks from the
+[`UncensoredModelCatalog`](https://github.com/framerslab/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts) (Hermes 3, Dolphin, MythoMax on OpenRouter) and
 bypasses the default OpenAI/Anthropic chain.
 
 ```typescript
@@ -74,7 +74,7 @@ Safe/standard tiers ignore the router and use the default provider chain.
 ### Refusal-retry
 
 When a model still produces wellness-bot speak despite the tier
-(happens with some OpenRouter routing hops), [`PolicyAwareRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) does not
+(happens with some OpenRouter routing hops), [`PolicyAwareRouter`](https://github.com/framerslab/agentos/blob/master/src/core/llm/routing/PolicyAwareRouter.ts) does not
 retry on its own — refusal detection is the caller's responsibility. The
 wilds-ai `CompanionOrchestrator` wraps this into a
 `runRefusalRetry` helper that iterates the full uncensored catalog on
@@ -108,7 +108,7 @@ const outfit = await editImage({
 
 When `policyTier` is `'mature'` or `'private-adult'`, the API:
 
-1. Routes through [`PolicyAwareImageRouter`](https://github.com/framersai/agentos/blob/master/src/io/media/images/PolicyAwareImageRouter.ts) to pick a model from the
+1. Routes through [`PolicyAwareImageRouter`](https://github.com/framerslab/agentos/blob/master/src/io/media/images/PolicyAwareImageRouter.ts) to pick a model from the
    uncensored catalog. `generateImage` infers `'face-consistency'` when
    `referenceImageUrl` is supplied; `editImage` defaults to `'img2img'`
    and honours explicit `capabilities` hints.
@@ -162,7 +162,7 @@ Kontext's moderation is baked into the model weights.
 ## Extending the catalog
 
 `createUncensoredModelCatalog()` returns an immutable catalog. To add
-models, compose your own implementation of [`UncensoredModelCatalog`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts):
+models, compose your own implementation of [`UncensoredModelCatalog`](https://github.com/framerslab/agentos/blob/master/src/core/llm/routing/UncensoredModelCatalog.ts):
 
 ```typescript
 import type { UncensoredModelCatalog, CatalogEntry } from '@framers/agentos';

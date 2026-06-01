@@ -2,7 +2,7 @@
 
 A real phone call has stricter latency budgets than any chat surface. Twilio's docs say "audio gaps over 200ms feel unnatural"; in practice anything over 400ms gets users hanging up. The voice path through AgentOS is built around that constraint: the [voice pipeline](./VOICE_PIPELINE.md) runs end-to-end at low enough latency to feel like a conversation, and the telephony layer extends that into the PSTN by speaking the same streaming protocol — incoming caller audio is decoded to Float32 frames for VAD/STT, outbound TTS audio is re-encoded to mu-law on the way back to the phone, all through a full-duplex WebSocket. The provider is interchangeable.
 
-Three providers ship in-tree at [`src/channels/telephony/providers/`](https://github.com/framersai/agentos/tree/master/src/channels/telephony/providers): **Twilio**, **Telnyx**, and **Plivo**. All three implement [`IVoiceCallProvider`](https://github.com/framersai/agentos/blob/master/src/channels/telephony/IVoiceCallProvider.ts) and are wired through the central [`CallManager`](https://github.com/framersai/agentos/blob/master/src/channels/telephony/CallManager.ts) state machine. There's also a mock provider for testing.
+Three providers ship in-tree at [`src/channels/telephony/providers/`](https://github.com/framerslab/agentos/tree/master/src/channels/telephony/providers): **Twilio**, **Telnyx**, and **Plivo**. All three implement [`IVoiceCallProvider`](https://github.com/framerslab/agentos/blob/master/src/channels/telephony/IVoiceCallProvider.ts) and are wired through the central [`CallManager`](https://github.com/framerslab/agentos/blob/master/src/channels/telephony/CallManager.ts) state machine. There's also a mock provider for testing.
 
 ---
 
@@ -28,10 +28,10 @@ The telephony system is made up of three cooperating layers:
 
 | Layer | Purpose |
 |---|---|
-| [`IVoiceCallProvider`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/IVoiceCallProvider.ts) | Initiates/hangs up calls, verifies webhooks, parses events |
-| [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts) | State machine — enforces monotonic call state transitions |
-| [`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) | Bridges a provider WebSocket media stream to the voice pipeline |
-| [`MediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts) (per provider) | Normalises provider-specific WebSocket frames |
+| [`IVoiceCallProvider`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/IVoiceCallProvider.ts) | Initiates/hangs up calls, verifies webhooks, parses events |
+| [`CallManager`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/CallManager.ts) | State machine — enforces monotonic call state transitions |
+| [`TelephonyStreamTransport`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) | Bridges a provider WebSocket media stream to the voice pipeline |
+| [`MediaStreamParser`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts) (per provider) | Normalises provider-specific WebSocket frames |
 
 Agents communicate with callers over a full-duplex WebSocket media stream (mu-law
 8 kHz PCM). The transport decodes incoming audio to Float32 frames for VAD/STT and
@@ -175,9 +175,9 @@ CLI's `chat --telephony-webhook-port=...` flags ([documented below](#cli-flags))
 and expose it with a tunnel (`ngrok http 3001`).
 
 Programmatically, wire the webhook routes onto your own HTTP server using the
-exports from `@framers/agentos/channels/telephony` — [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts),
-[`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts), and the per-provider media-stream parsers
-([`TwilioMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TwilioMediaStreamParser.ts), [`TelnyxMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/TelnyxMediaStreamParser.ts), [`PlivoMediaStreamParser`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/parsers/PlivoMediaStreamParser.ts))
+exports from `@framers/agentos/channels/telephony` — [`CallManager`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/CallManager.ts),
+[`TelephonyStreamTransport`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts), and the per-provider media-stream parsers
+([`TwilioMediaStreamParser`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/parsers/TwilioMediaStreamParser.ts), [`TelnyxMediaStreamParser`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/parsers/TelnyxMediaStreamParser.ts), [`PlivoMediaStreamParser`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/parsers/PlivoMediaStreamParser.ts))
 — mounted under whatever framework you already run. A drop-in
 `startTelephonyWebhookServer` factory is on the roadmap but has not shipped
 yet; until then, the CLI is the no-code path and the manager + transport are
@@ -215,7 +215,7 @@ Signature verification is performed automatically by each provider's
 
 All providers deliver DTMF (touch-tone) digits either in-band (as part of the
 media stream) or as separate webhook events. AgentOS normalises both paths into
-the same [`NormalizedDtmfReceived`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/types.ts) event:
+the same [`NormalizedDtmfReceived`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/types.ts) event:
 
 ```typescript
 manager.on((event) => {
@@ -275,14 +275,14 @@ flowchart TD
 **Inbound path (phone → pipeline)**
 
 1. Provider delivers a WebSocket frame (JSON string or binary Buffer).
-2. `MediaStreamParser.parseIncoming()` normalises it to a [`MediaStreamIncoming`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts)
+2. `MediaStreamParser.parseIncoming()` normalises it to a [`MediaStreamIncoming`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/MediaStreamParser.ts)
    discriminated union (`start | audio | dtmf | stop | mark`).
 3. `audio` events: mu-law 8 kHz → Int16 PCM → upsample to pipeline rate → Float32.
-4. The [`AudioFrame`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) is emitted from the transport for VAD / STT consumption.
+4. The [`AudioFrame`](https://github.com/framerslab/agentos/blob/master/src/io/voice-pipeline/types.ts) is emitted from the transport for VAD / STT consumption.
 
 **Outbound path (pipeline → phone)**
 
-1. TTS pipeline produces an [`EncodedAudioChunk`](https://github.com/framersai/agentos/blob/master/src/io/voice-pipeline/types.ts) (PCM Int16 at pipeline sample rate).
+1. TTS pipeline produces an [`EncodedAudioChunk`](https://github.com/framerslab/agentos/blob/master/src/io/voice-pipeline/types.ts) (PCM Int16 at pipeline sample rate).
 2. `TelephonyStreamTransport.sendAudio()` resamples it to 8 kHz.
 3. PCM is mu-law encoded.
 4. `MediaStreamParser.formatOutgoing()` wraps it in the provider envelope (e.g., Twilio JSON).

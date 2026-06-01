@@ -11,17 +11,17 @@
 **Agents that remember, forge their own tools, and survive long-running sessions.** Persistent cognitive memory, optional HEXACO personality, multi-agent orchestration, and one dispatch interface across 11 LLM providers. Apache-2.0.
 
 [![npm](https://img.shields.io/npm/v/@framers/agentos?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@framers/agentos)
-[![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/framersai/agentos/master/.github/badges/tests.json&style=flat-square&logo=vitest&logoColor=white)](https://github.com/framersai/agentos/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/framersai/agentos/ci.yml?branch=master&style=flat-square&logo=github&label=CI)](https://github.com/framerslab/agentos/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/framersai/agentos/master/.github/badges/tests.json&style=flat-square&logo=vitest&logoColor=white)](https://github.com/framerslab/agentos/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/framersai/agentos/graph/badge.svg)](https://codecov.io/gh/framersai/agentos)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![LongMemEval-S](https://img.shields.io/badge/LongMemEval--S-85.6%25-2ea043?style=flat-square)](https://docs.agentos.sh/blog/2026/04/27/longmemeval-s-83-with-semantic-embedder)
 [![LongMemEval-M](https://img.shields.io/badge/LongMemEval--M-70.2%25-2ea043?style=flat-square)](https://docs.agentos.sh/blog/2026/04/29/longmemeval-m-70-with-topk5)
-[![agentos-bench](https://img.shields.io/badge/bench-public-blue?style=flat-square)](https://github.com/framersai/agentos-bench)
+[![agentos-bench](https://img.shields.io/badge/bench-public-blue?style=flat-square)](https://github.com/framerslab/agentos-bench)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=flat-square&logo=discord)](https://wilds.ai/discord)
 
-[**Benchmarks**](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md) * [Website](https://agentos.sh) * [Docs](https://docs.agentos.sh) * [npm](https://www.npmjs.com/package/@framers/agentos) * [Discord](https://wilds.ai/discord) * [Blog](https://docs.agentos.sh/blog)
+[**Benchmarks**](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md) * [Website](https://agentos.sh) * [Docs](https://docs.agentos.sh) * [npm](https://www.npmjs.com/package/@framers/agentos) * [Discord](https://wilds.ai/discord) * [Blog](https://docs.agentos.sh/blog)
 
 </div>
 
@@ -29,7 +29,7 @@
 
 AgentOS is an open-source TypeScript framework for AI agents that **remember, adapt, and write their own tools**.
 
-- **85.6% on [LongMemEval-S](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** at $0.0090 per correct answer (gpt-4o reader): +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's 86% closed-source SOTA.
+- **85.6% on [LongMemEval-S](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)** at $0.0090 per correct answer (gpt-4o reader): +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's 86% closed-source SOTA.
 - **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question): the only open-source library on the public record above 65% on M with publicly reproducible methodology.
 - **Runtime tool forging.** An agent writes a TypeScript function with a Zod schema, an LLM judge approves it, and it runs in a hardened `node:vm` sandbox before joining the catalog for the rest of the session. Multi-agent teams spawn judge-reviewed specialists the same way.
 - **Persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory)** with 8 neuroscience-backed mechanisms: Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, and source-confidence decay, grounded in published cognitive-science literature.
@@ -47,7 +47,7 @@ AgentOS is an open-source TypeScript framework for AI agents that **remember, ad
        width="900" />
 </picture>
 
-<sub>Runtime tool forging + multi-agent collaboration. Reproduce with <code>node <a href="https://github.com/framersai/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs">examples/emergent-hierarchical-spawning.mjs</a></code>.</sub>
+<sub>Runtime tool forging + multi-agent collaboration. Reproduce with <code>node <a href="https://github.com/framerslab/agentos/blob/master/examples/emergent-hierarchical-spawning.mjs">examples/emergent-hierarchical-spawning.mjs</a></code>.</sub>
 
 </div>
 
@@ -185,7 +185,7 @@ M's haystacks exceed every production context window; most vendors only publish 
 
 At matched Top-5 retrieval, +4.5 above the round-level paper baseline (65.7%) and 1.2 below the session-level (71.4%); the paper's overall strongest GPT-4o result is 72.0% at Top-10. Of open-source libraries with publicly reproducible runs, AgentOS is the only one above 65% on M.
 
-> **[Full leaderboard ->](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)** * **[Run JSONs ->](https://github.com/framersai/agentos-bench/tree/master/results/runs)** * **[Transparency audit ->](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/)** * **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
+> **[Full leaderboard ->](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)** * **[Run JSONs ->](https://github.com/framerslab/agentos-bench/tree/master/results/runs)** * **[Transparency audit ->](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/)** * **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
 
 Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (S 1%, M 2%, LOCOMO 0%), per-case run JSONs, single-CLI reproduction. The [transparency audit](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) covers what the headline numbers don't: LOCOMO's ~6.4% answer-key error rate, the LongMemEval-S context-window confound, and the Mem0-vs-Zep comparison gaming case study, alongside which vendors disclose which methodology dimensions.
 
@@ -200,7 +200,7 @@ Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-
 | [`@framers/agentos-extensions-registry`](https://www.npmjs.com/package/@framers/agentos-extensions-registry) | Discovery + auto-loader layer for the extensions catalog. Hosts pull the index without pulling every implementation; the runtime resolves and registers packs at startup. |
 | [`@framers/agentos-skills`](https://www.npmjs.com/package/@framers/agentos-skills) | 88 curated `SKILL.md` skills covering common tasks. |
 | [`@framers/agentos-skills-registry`](https://www.npmjs.com/package/@framers/agentos-skills-registry) | Discovery + auto-loader layer for the skills catalog. Also the surface where promoted forged tools land after `SkillExporter`. |
-| [`@framers/agentos-bench`](https://github.com/framersai/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0). |
+| [`@framers/agentos-bench`](https://github.com/framerslab/agentos-bench) | Open benchmark harness. Bootstrap 95% CIs at 10k resamples, judge false-positive-rate probes, per-case run JSONs at fixed seed. MIT (the rest of AgentOS is Apache 2.0). |
 | [`@framers/sql-storage-adapter`](https://www.npmjs.com/package/@framers/sql-storage-adapter) | Cross-platform SQL persistence: SQLite, Postgres, IndexedDB, Capacitor SQLite. |
 | [`paracosm`](https://www.npmjs.com/package/paracosm) | AI agent swarm simulation engine that uses AgentOS as its substrate. |
 | [`wunderland`](https://www.npmjs.com/package/wunderland) | Sister project (preview): batteries-included CLI plus daemon over the AgentOS extension and skill registries. 28-command CLI, 5-tier security, 8 agent presets, step-up HITL. Apache-2.0. |
@@ -217,9 +217,9 @@ The full architecture and benchmark methodology, written for engineers and resea
 |---|---|
 | **Architecture** | Generalized Mind Instances, IngestRouter / MemoryRouter / ReadRouter, 8 cognitive mechanisms with primary-source citations |
 | **Benchmarks** | LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack |
-| **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framersai/agentos-bench](https://github.com/framersai/agentos-bench) |
+| **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framerslab/agentos-bench](https://github.com/framerslab/agentos-bench) |
 
-**[Join Discord for the announcement ->](https://wilds.ai/discord)** * **[Read the benchmarks now ->](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**
+**[Join Discord for the announcement ->](https://wilds.ai/discord)** * **[Read the benchmarks now ->](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)**
 
 ---
 
@@ -369,7 +369,7 @@ Define any scenario as JSON. Run it with AI commanders that have different HEXAC
 npm install paracosm
 ```
 
-[Live Demo](https://paracosm.agentos.sh/sim) * [GitHub](https://github.com/framersai/paracosm) * [npm](https://www.npmjs.com/package/paracosm)
+[Live Demo](https://paracosm.agentos.sh/sim) * [GitHub](https://github.com/framerslab/paracosm) * [npm](https://www.npmjs.com/package/paracosm)
 
 ---
 
@@ -454,25 +454,25 @@ Caveat: `generateObject()` auto-derives a sane default for `maxTokens` from the 
 
 ## Documentation & Community
 
-- **[Benchmarks](https://github.com/framersai/agentos-bench/blob/master/results/LEADERBOARD.md)**: benchmark tables, 95% confidence intervals, methodology audit
+- **[Benchmarks](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)**: benchmark tables, 95% confidence intervals, methodology audit
 - **[Architecture](https://docs.agentos.sh/architecture/system-architecture)**: system design, layer breakdown
 - **[Cognitive Memory](https://docs.agentos.sh/features/cognitive-memory)**: 8 mechanisms with 30+ APA citations
 - **[RAG Configuration](https://docs.agentos.sh/features/rag-memory-configuration)**: vector stores, embeddings, sources
 - **[Guardrails](https://docs.agentos.sh/features/guardrails-architecture)**: 5 tiers, 6 packs
 - **[Voice Pipeline](https://docs.agentos.sh/features/voice-pipeline)**: TTS, STT, telephony
 - **[Blog](https://docs.agentos.sh/blog)**: engineering posts, benchmark publications, transparency audits
-- **[Discord](https://wilds.ai/discord)** * **[GitHub Issues](https://github.com/framersai/agentos/issues)** * **[Wilds.ai](https://wilds.ai)** (AI game worlds powered by AgentOS)
+- **[Discord](https://wilds.ai/discord)** * **[GitHub Issues](https://github.com/framerslab/agentos/issues)** * **[Wilds.ai](https://wilds.ai)** (AI game worlds powered by AgentOS)
 
 ---
 
 ## Contributing
 
 ```bash
-git clone https://github.com/framersai/agentos.git && cd agentos
+git clone https://github.com/framerslab/agentos.git && cd agentos
 pnpm install && pnpm build && pnpm test
 ```
 
-[Contributing Guide](https://github.com/framersai/agentos/blob/master/CONTRIBUTING.md) * We use [Conventional Commits](https://www.conventionalcommits.org/).
+[Contributing Guide](https://github.com/framerslab/agentos/blob/master/CONTRIBUTING.md) * We use [Conventional Commits](https://www.conventionalcommits.org/).
 
 ---
 

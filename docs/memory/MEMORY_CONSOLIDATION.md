@@ -89,7 +89,7 @@ Sweep archived traces past their retention age (default: 365 days). For each can
 2. If the trace was rehydrated within the retention window, skip it.
 3. Otherwise, drop it via `archive.drop(traceId)`.
 
-This step runs only when an [`IMemoryArchive`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts) is configured on the pipeline. Default retention: 365 days. Configurable via [`MemoryArchiveRetentionConfig`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts).
+This step runs only when an [`IMemoryArchive`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts) is configured on the pipeline. Default retention: 365 days. Configurable via [`MemoryArchiveRetentionConfig`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/archive/IMemoryArchive.ts).
 
 When `TemporalGist` runs during step 6's cognitive mechanisms phase, it now preserves the original verbatim content in the archive before overwriting `trace.content` with the gist. If the archive write fails, the trace keeps its verbatim content and retries on the next consolidation cycle.
 
@@ -260,7 +260,7 @@ Groups related observation notes by topic/entity overlap, produces 1-3 sentence 
 
 Source: `memory/observation/ObservationReflector.ts`
 
-Consolidates accumulated observation notes into long-term [`MemoryTrace`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) objects. Conflict resolution is personality-driven:
+Consolidates accumulated observation notes into long-term [`MemoryTrace`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/SelfEvaluateTool.ts) objects. Conflict resolution is personality-driven:
 
 | Personality | Resolution Strategy |
 |-------------|-------------------|

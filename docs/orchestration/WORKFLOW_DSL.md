@@ -1,6 +1,6 @@
 # workflow() DSL
 
-The right way to ship a multi-step agent is rarely the most flexible way. A graph that can loop and replan is great when you don't know what shape the work takes; it's overkill — and harder to operate — when you do know. `workflow()` exists for the second case. You declare the steps in the order they run, the compiler builds the execution graph, and a static cycle check rejects anything that would loop. The output is the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) the cyclic builders produce, so you can swap a `workflow()` for an [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) later without re-architecting the runtime around it.
+The right way to ship a multi-step agent is rarely the most flexible way. A graph that can loop and replan is great when you don't know what shape the work takes; it's overkill — and harder to operate — when you do know. `workflow()` exists for the second case. You declare the steps in the order they run, the compiler builds the execution graph, and a static cycle check rejects anything that would loop. The output is the same [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) the cyclic builders produce, so you can swap a `workflow()` for an [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) later without re-architecting the runtime around it.
 
 Use `workflow()` when the steps are known and ordered. Use [`AgentGraph`](./AGENT_GRAPH.md) when you need cycles, conditional branches, or fan-out/fan-in patterns the linear `then()` chain can't express. Use [`mission()`](./MISSION_API.md) when you want to declare intent first and let the planner decide the steps.
 
@@ -27,7 +27,7 @@ const result = await wf.invoke({ url: 'https://example.com/article' });
 workflow(name: string): WorkflowBuilder
 ```
 
-Returns a new [`WorkflowBuilder`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts). The name is used as the compiled graph's display name and as a prefix for run ids and checkpoint keys.
+Returns a new [`WorkflowBuilder`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts). The name is used as the compiled graph's display name and as a prefix for run ids and checkpoint keys.
 
 ## Schema Declaration
 
@@ -57,11 +57,11 @@ wf.step('fetch', { tool: 'web_search' })
 
 | Field | Description |
 |---|---|
-| `tool` | Name of a registered [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) to invoke |
+| `tool` | Name of a registered [`ITool`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts) to invoke |
 | `gmi` | LLM call with `instructions` string. Always runs as `single_turn` |
 | `human` | Suspend and surface `prompt` to a human operator |
 | `extension` | Call `method` on registered `extensionId` |
-| `subgraph` | Delegate to a [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) |
+| `subgraph` | Delegate to a [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) |
 
 **StepConfig — optional policies:**
 
@@ -101,7 +101,7 @@ wf.step('fetch', { tool: 'web_search' })
 
 ### branch()
 
-Appends a conditional fan-out. The `condition` function evaluates [`GraphState`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) at runtime and returns a route key. Each route key maps to a step config. All branches become the new tail — the next declared step connects from all of them.
+Appends a conditional fan-out. The `condition` function evaluates [`GraphState`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) at runtime and returns a route key. Each route key maps to a step config. All branches become the new tail — the next declared step connects from all of them.
 
 ```typescript
 wf.step('classify', { tool: 'classifier' })
@@ -288,13 +288,13 @@ const result2 = await onboarding.resume(savedCheckpointId);
 
 - Apache Airflow contributors. [*Apache Airflow: Programmatically author, schedule and monitor workflows.*](https://airflow.apache.org/) — Reference DAG-execution semantics that informed `workflow()`'s topological-sort + tier-execution model.
 - Prefect contributors. [*Prefect: The new standard in dataflow automation.*](https://www.prefect.io/) — Modern Python workflow engine with similar fail-fast and resume semantics.
-- Temporal contributors. [*Temporal: Microservices orchestration platform.*](https://temporal.io/) — Durable-execution patterns informing the checkpointing + resume design shared with `mission()` and [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts).
+- Temporal contributors. [*Temporal: Microservices orchestration platform.*](https://temporal.io/) — Durable-execution patterns informing the checkpointing + resume design shared with `mission()` and [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts).
 
 ### LLM-pipeline composition
 
-- Khattab, O., Singhvi, A., Maheshwari, P., Zhang, Z., Santhanam, K., Vardhamanan, S., Haq, S., Sharma, A., Joshi, T., Moazam, H., Miller, H., Zaharia, M., & Potts, C. (2023). [*DSPy: Compiling declarative language model calls into self-improving pipelines.*](https://arxiv.org/abs/2310.03714) arXiv:2310.03714. — The "compile-then-run" approach to LLM pipelines that informed the [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) IR design.
+- Khattab, O., Singhvi, A., Maheshwari, P., Zhang, Z., Santhanam, K., Vardhamanan, S., Haq, S., Sharma, A., Joshi, T., Moazam, H., Miller, H., Zaharia, M., & Potts, C. (2023). [*DSPy: Compiling declarative language model calls into self-improving pipelines.*](https://arxiv.org/abs/2310.03714) arXiv:2310.03714. — The "compile-then-run" approach to LLM pipelines that informed the [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) IR design.
 
 ### Implementation references
 
-- [`packages/agentos/src/orchestration/builders/WorkflowBuilder.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts) — `workflow()` factory + chain builder
-- [`packages/agentos/src/orchestration/compiler/CompiledExecutionGraph.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) — shared IR
+- [`packages/agentos/src/orchestration/builders/WorkflowBuilder.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/WorkflowBuilder.ts) — `workflow()` factory + chain builder
+- [`packages/agentos/src/orchestration/compiler/CompiledExecutionGraph.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) — shared IR

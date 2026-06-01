@@ -63,13 +63,13 @@ User Message
 
 | Component | Responsibility |
 |-----------|---------------|
-| [`CapabilityDiscoveryEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityDiscoveryEngine.ts) | Top-level orchestrator — coordinates index, graph, and assembler |
-| [`CapabilityIndex`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) | Normalizes sources into [`CapabilityDescriptor`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/types.ts); embeds and stores in vector index |
-| [`CapabilityGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) | Graphology relationship graph (4 edge types); provides re-ranking boosts |
-| [`CapabilityContextAssembler`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityContextAssembler.ts) | Builds Tier 0/1/2 context within hard token budgets |
-| [`CapabilityEmbeddingStrategy`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) | Constructs intent-oriented embedding text per capability |
-| [`CapabilityManifestScanner`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) | Scans for `CAPABILITY.yaml` manifests; hot-reload via `fs.watch` |
-| [`createDiscoverCapabilitiesTool`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/DiscoverCapabilitiesTool.ts) | Factory for the `discover_capabilities` meta-tool |
+| [`CapabilityDiscoveryEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityDiscoveryEngine.ts) | Top-level orchestrator — coordinates index, graph, and assembler |
+| [`CapabilityIndex`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) | Normalizes sources into [`CapabilityDescriptor`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/types.ts); embeds and stores in vector index |
+| [`CapabilityGraph`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) | Graphology relationship graph (4 edge types); provides re-ranking boosts |
+| [`CapabilityContextAssembler`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityContextAssembler.ts) | Builds Tier 0/1/2 context within hard token budgets |
+| [`CapabilityEmbeddingStrategy`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) | Constructs intent-oriented embedding text per capability |
+| [`CapabilityManifestScanner`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) | Scans for `CAPABILITY.yaml` manifests; hot-reload via `fs.watch` |
+| [`createDiscoverCapabilitiesTool`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/DiscoverCapabilitiesTool.ts) | Factory for the `discover_capabilities` meta-tool |
 
 ---
 
@@ -124,11 +124,11 @@ Token budgets are hard-enforced by the assembler using a ~4 chars/token heuristi
 
 ## Source Normalization
 
-[`CapabilityIndex`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) normalizes five source types into unified [`CapabilityDescriptor`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/types.ts) objects:
+[`CapabilityIndex`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) normalizes five source types into unified [`CapabilityDescriptor`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/types.ts) objects:
 
 | Source | ID Convention | Kind | Example |
 |--------|--------------|------|---------|
-| Tools ([`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts)) | `tool:{name}` | `tool` | `tool:web-search` |
+| Tools ([`ITool`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts)) | `tool:{name}` | `tool` | `tool:web-search` |
 | Skills (`SKILL.md`) | `skill:{name}` | `skill` | `skill:github` |
 | Extensions (catalog) | `extension:{name}` | `extension` | `extension:giphy` |
 | Channels (platform) | `channel:{platform}` | `channel` | `channel:telegram` |
@@ -142,7 +142,7 @@ Normalization is deterministic and runs during `initialize()`. Skills derive `di
 
 ## Embedding Strategy
 
-[`CapabilityEmbeddingStrategy`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) constructs a concise text per capability (100-300 tokens) optimized for semantic matching against user intents. Informed by ToolLLM (NDCG@5 of 84.9 on 16K+ APIs) and MCP-RAG parameter-level decomposition.
+[`CapabilityEmbeddingStrategy`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) constructs a concise text per capability (100-300 tokens) optimized for semantic matching against user intents. Informed by ToolLLM (NDCG@5 of 84.9 on 16K+ APIs) and MCP-RAG parameter-level decomposition.
 
 | Field | Why | Example |
 |-------|-----|---------|
@@ -159,7 +159,7 @@ Fields **not** embedded: `fullSchema`, `fullContent`, `requiredSecrets` — thes
 
 ## Graph Relationships
 
-[`CapabilityGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) uses [graphology](https://graphology.github.io/) (shared with [`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts)) for O(1) neighbor lookups and sub-millisecond traversal. All edges are built deterministically from metadata.
+[`CapabilityGraph`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) uses [graphology](https://graphology.github.io/) (shared with [`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts)) for O(1) neighbor lookups and sub-millisecond traversal. All edges are built deterministically from metadata.
 
 ### Edge Types
 
@@ -204,7 +204,7 @@ toolOrchestrator.registerTool(metaTool);
 
 ## File-Based Discovery
 
-Custom capabilities defined via `CAPABILITY.yaml`, scanned by [`CapabilityManifestScanner`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts).
+Custom capabilities defined via `CAPABILITY.yaml`, scanned by [`CapabilityManifestScanner`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts).
 
 **Scan directories** (priority order):
 1. `~/.agentos/capabilities/` (user-global)
@@ -492,11 +492,11 @@ All source lives in `packages/agentos/src/discovery/`:
 
 | File | Export |
 |------|--------|
-| `types.ts` | All types, [`DEFAULT_DISCOVERY_CONFIG`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/types.ts) |
-| `CapabilityDiscoveryEngine.ts` | [`CapabilityDiscoveryEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityDiscoveryEngine.ts) |
+| `types.ts` | All types, [`DEFAULT_DISCOVERY_CONFIG`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/types.ts) |
+| `CapabilityDiscoveryEngine.ts` | [`CapabilityDiscoveryEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityDiscoveryEngine.ts) |
 | `CapabilityIndex.ts` | `CapabilityIndex` |
 | `CapabilityGraph.ts` | `CapabilityGraph` |
-| `CapabilityContextAssembler.ts` | [`CapabilityContextAssembler`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityContextAssembler.ts) |
+| `CapabilityContextAssembler.ts` | [`CapabilityContextAssembler`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityContextAssembler.ts) |
 | `CapabilityEmbeddingStrategy.ts` | `CapabilityEmbeddingStrategy` |
 | `CapabilityManifestScanner.ts` | `CapabilityManifestScanner` |
 | `DiscoverCapabilitiesTool.ts` | `createDiscoverCapabilitiesTool()` |

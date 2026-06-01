@@ -1,10 +1,10 @@
 # AgentGraph
 
-When `workflow()` is too rigid and `mission()` is too far ahead of where the runtime currently plans, the answer is [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) — explicit node and edge construction with cycles, conditional routing, subgraph composition, and the discovery and personality edges that don't exist in any other open agent framework. It compiles to the same [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) IR as the higher-level builders, but it gets you full control over the topology before compilation.
+When `workflow()` is too rigid and `mission()` is too far ahead of where the runtime currently plans, the answer is [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) — explicit node and edge construction with cycles, conditional routing, subgraph composition, and the discovery and personality edges that don't exist in any other open agent framework. It compiles to the same [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/compiler/CompiledExecutionGraph.ts) IR as the higher-level builders, but it gets you full control over the topology before compilation.
 
 **Honest runtime status.** Compilation is complete. Execution is partial: the base runtime executes `tool`, `router`, `guardrail`, and `human` nodes directly. `gmi`, `extension`, and `subgraph` execution still requires a higher-level runtime bridge today, and the discovery and personality edges activate fully only when those integrations are wired. If your graph uses only the four direct-execution node kinds, you're in production-ready territory; if it relies heavily on `gmi` nodes inside cycles, expect to wire the bridge.
 
-Use [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need cycles, conditional fan-out, memory-driven state machines, or subgraph composition. Use [`workflow()`](./workflow-dsl.md) for linear pipelines. Use [`mission()`](./mission-api.md) when you'd rather declare intent than topology.
+Use [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) when you need cycles, conditional fan-out, memory-driven state machines, or subgraph composition. Use [`workflow()`](./workflow-dsl.md) for linear pipelines. Use [`mission()`](./mission-api.md) when you'd rather declare intent than topology.
 
 ![AgentGraph topology: six node types (gmi, tool, router, guardrail, human, subgraph) connected by directed edges including conditional fan-out and a memory-driven retry cycle; compiles to the same CompiledExecutionGraph IR as workflow() and mission()](/img/diagrams/agent-graph-topology.svg)
 
@@ -46,8 +46,8 @@ new AgentGraph(stateSchema, config?)
 | `stateSchema.input` | Zod schema | Shape of the frozen user input |
 | `stateSchema.scratch` | Zod schema | Shape of the mutable node-to-node communication bag |
 | `stateSchema.artifacts` | Zod schema | Shape of the accumulated outputs returned to the caller |
-| `config.reducers` | [`StateReducers`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) | Field-level merge strategies for parallel branches |
-| `config.memoryConsistency` | [`MemoryConsistencyMode`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) | Graph-wide memory isolation (default: `'snapshot'`) |
+| `config.reducers` | [`StateReducers`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) | Field-level merge strategies for parallel branches |
+| `config.memoryConsistency` | [`MemoryConsistencyMode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) | Graph-wide memory isolation (default: `'snapshot'`) |
 | `config.checkpointPolicy` | `'every_node' \| 'explicit' \| 'none'` | When to persist checkpoints (default: `'none'`) |
 
 ## Node Builders
@@ -93,7 +93,7 @@ gmiNode(
 
 ### toolNode
 
-Invokes a registered [`ITool`](https://github.com/framersai/agentos/blob/master/src/core/tools/ITool.ts) by name. The tool name must match a key in the tool catalogue.
+Invokes a registered [`ITool`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ITool.ts) by name. The tool name must match a key in the tool catalogue.
 
 ```typescript
 import { toolNode } from '@framers/agentos/orchestration';
@@ -151,7 +151,7 @@ guardrailNode(['pii-redaction', 'content-safety'], {
 
 ### subgraphNode
 
-Embeds a previously compiled [`CompiledExecutionGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) as a single node. Input and output fields are mapped between the parent and child graphs.
+Embeds a previously compiled [`CompiledExecutionGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) as a single node. Input and output fields are mapped between the parent and child graphs.
 
 At the moment, this is a compile-time authoring primitive. Executing subgraphs requires a runtime bridge that knows how to resolve and invoke nested graphs.
 
@@ -178,7 +178,7 @@ graph.addEdge('process', END);
 
 ### Conditional Edge
 
-Target is resolved at runtime by a function receiving the current [`GraphState`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts).
+Target is resolved at runtime by a function receiving the current [`GraphState`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts).
 
 ```typescript
 graph.addConditionalEdge('evaluate', (state) =>
@@ -224,7 +224,7 @@ Available HEXACO traits: `honesty_humility`, `emotionality`, `extraversion`, `ag
 
 ## State Management
 
-[`GraphState`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts) has three partitions you control and two managed by the runtime:
+[`GraphState`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts) has three partitions you control and two managed by the runtime:
 
 ```typescript
 interface GraphState<TInput, TScratch, TArtifacts> {
@@ -448,6 +448,6 @@ const result2 = await graph.resume(savedCheckpointId);
 
 ### Implementation references
 
-- [`packages/agentos/src/orchestration/builders/AgentGraph.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) — the AgentGraph class
-- [`packages/agentos/src/orchestration/builders/nodes.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts) — [`gmiNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`toolNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`humanNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`routerNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`guardrailNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`subgraphNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts), [`judgeNode`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/nodes.ts) factories
-- [`packages/agentos/src/orchestration/ir/`](https://github.com/framersai/agentos/tree/master/src/orchestration/ir) — shared IR types ([`START`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts), [`END`](https://github.com/framersai/agentos/blob/master/src/orchestration/ir/types.ts), edges, reducers)
+- [`packages/agentos/src/orchestration/builders/AgentGraph.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) — the AgentGraph class
+- [`packages/agentos/src/orchestration/builders/nodes.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts) — [`gmiNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`toolNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`humanNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`routerNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`guardrailNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`subgraphNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts), [`judgeNode`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/nodes.ts) factories
+- [`packages/agentos/src/orchestration/ir/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/ir) — shared IR types ([`START`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts), [`END`](https://github.com/framerslab/agentos/blob/master/src/orchestration/ir/types.ts), edges, reducers)

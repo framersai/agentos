@@ -1,6 +1,6 @@
-> **Live run**: see the QueryRouter initialize a 1,720-chunk corpus across 50 topics and 333 sources on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/query-router.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router.mjs).
+> **Live run**: see the QueryRouter initialize a 1,720-chunk corpus across 50 topics and 333 sources on the [agentos.sh demo gallery](https://agentos.sh/#live-demo). Source: [`examples/query-router.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router.mjs).
 
-[`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) is the one-call grounded Q&A pipeline. Point it at your markdown directories, ask a question, get back a fully-attributed answer:
+[`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) is the one-call grounded Q&A pipeline. Point it at your markdown directories, ask a question, get back a fully-attributed answer:
 
 ```ts
 import { QueryRouter } from '@framers/agentos';
@@ -22,7 +22,7 @@ const result = await router.route('how do I configure a guardrail?');
 
 ## When To Use It
 
-Reach for [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you're building any of these on top of a documentation corpus or knowledge base:
+Reach for [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) when you're building any of these on top of a documentation corpus or knowledge base:
 
 - An in-product help / "ask the docs" feature
 - A support copilot that answers from internal runbooks
@@ -53,10 +53,10 @@ If no embedding provider is configured, the router degrades cleanly to keyword s
 
 ## Execution Paths
 
-- Default path: `route()` classifies the query, then dispatches retrieval through the legacy [`QueryDispatcher`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryDispatcher.ts).
-- Opt-in path: if a host calls `setUnifiedRetriever(...)`, `route()` switches to plan-aware retrieval through [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts).
+- Default path: `route()` classifies the query, then dispatches retrieval through the legacy [`QueryDispatcher`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryDispatcher.ts).
+- Opt-in path: if a host calls `setUnifiedRetriever(...)`, `route()` switches to plan-aware retrieval through [`UnifiedRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts).
 
-This matters because [`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) is implemented and usable today, but it is not the default QueryRouter/runtime retrieval path yet.
+This matters because [`UnifiedRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts) is implemented and usable today, but it is not the default QueryRouter/runtime retrieval path yet.
 
 ## Current Limitations
 
@@ -82,7 +82,7 @@ mode.
 
 ## Example
 
-Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router.mjs)
+Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router.mjs)
 
 ```ts
 import { QueryRouter } from '@framers/agentos';
@@ -109,7 +109,7 @@ await router.close();
 
 ### Host-Injected Runtime Example
 
-Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router-host-hooks.mjs)
+Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router-host-hooks.mjs)
 
 ```ts
 const router = new QueryRouter({
@@ -144,7 +144,7 @@ The QueryRouter ships with **260 pre-built knowledge entries** that cover the en
 
 ### How It Works
 
-Platform knowledge is loaded from `knowledge/platform-corpus.json` inside the `@framers/agentos` package. During `init()`, these entries are converted to [`CorpusChunk`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) objects and appended to the user corpus. Both the vector index and the keyword fallback index cover platform entries, so they work regardless of whether an embedding API key is available.
+Platform knowledge is loaded from `knowledge/platform-corpus.json` inside the `@framers/agentos` package. During `init()`, these entries are converted to [`CorpusChunk`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) objects and appended to the user corpus. Both the vector index and the keyword fallback index cover platform entries, so they work regardless of whether an embedding API key is available.
 
 The platform knowledge layer sits beneath your project documentation:
 
@@ -201,8 +201,8 @@ This regenerates `knowledge/platform-corpus.json` from the current tool manifest
 - `deepResearchEnabled` controls whether the tier-3 research branch is attempted; the default core implementation is a local-corpus heuristic, and hosts can still inject a real web-backed implementation.
 - `onClassification` and `onRetrieval` are hooks for consumers that want lightweight runtime integration without reading the full event stream.
 - `cacheResults` controls an in-memory cache of completed `route()` results. QueryRouter clears that cache when indexed corpus chunks change and when retrieval-planning dependencies such as `UnifiedRetriever` or the capability-discovery engine are swapped.
-- `verifyCitations` enables post-generation [`CitationVerifier`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/citation/CitationVerifier.ts) runs against the retrieved chunks for a route. When verification runs successfully, the result is attached to `QueryResult.grounding`; if embeddings are unavailable or no chunks were retrieved, verification is skipped gracefully.
-- `router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot with configured path count, loaded chunk/topic/source counts, live bundled platform-knowledge category counts, whether retrieval is running in `vector+keyword-fallback` or `keyword-only` mode, the embedding health field `embeddingStatus`, and the runtime-truth fields `graphRuntimeMode`, `rerankRuntimeMode`, and `deepResearchRuntimeMode`.
+- `verifyCitations` enables post-generation [`CitationVerifier`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/citation/CitationVerifier.ts) runs against the retrieved chunks for a route. When verification runs successfully, the result is attached to `QueryResult.grounding`; if embeddings are unavailable or no chunks were retrieved, verification is skipped gracefully.
+- `router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot with configured path count, loaded chunk/topic/source counts, live bundled platform-knowledge category counts, whether retrieval is running in `vector+keyword-fallback` or `keyword-only` mode, the embedding health field `embeddingStatus`, and the runtime-truth fields `graphRuntimeMode`, `rerankRuntimeMode`, and `deepResearchRuntimeMode`.
 - `embeddingStatus: 'active'` means the vector index initialized successfully, `'disabled-no-key'` means init stayed keyword-only because no embedding credential was available, and `'failed-init'` means embedding bootstrap was attempted but failed and the router fell back to keyword-only mode.
 - `graphRuntimeMode: 'heuristic'` means the built-in same-document / heading-overlap expansion is active; `'active'` is reserved for a future wired graph expansion service or a host-injected hook.
 - `rerankRuntimeMode: 'heuristic'` means the built-in lexical reranker is active; `'active'` is reserved for a future wired reranker service.
@@ -210,11 +210,11 @@ This regenerates `knowledge/platform-corpus.json` from the current tool manifest
 
 ## Result Metadata
 
-[`QueryResult`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) includes:
+[`QueryResult`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) includes:
 
 - `classification`: the final classification result
 - `sources`: citations built from retrieved chunks
-- `grounding`: optional [`VerifiedResponse`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/citation/types.ts) from post-generation citation verification
+- `grounding`: optional [`VerifiedResponse`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/citation/types.ts) from post-generation citation verification
 - `recommendations`: optional skill/tool/extension suggestions inferred during plan-aware classification
 - `tiersUsed`: the tiers actually exercised after fallbacks
 - `fallbacksUsed`: retrieval/classification fallback strategy names such as `keyword-fallback` or `research-skip`

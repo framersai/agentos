@@ -4,7 +4,7 @@ sidebar_position: 7
 description: 'Keep a raw IVectorStore collection in sync with content-hash caching: skip unchanged chunks, re-embed only what changed, and re-run the same ingest as often as you like for near-zero cost. The lower-level path beneath Memory.ingest().'
 ---
 
-> `Memory.ingest()` builds a full cognitive-memory brain (traces, FTS5, knowledge graph, decay). When you want a plain searchable vector collection instead, doc citations, a help index, a product knowledge base, drive [`IVectorStore`](https://github.com/framersai/agentos/blob/master/src/core/vector-store/IVectorStore.ts) directly and add a content-hash check so re-ingesting a corpus only embeds what actually changed.
+> `Memory.ingest()` builds a full cognitive-memory brain (traces, FTS5, knowledge graph, decay). When you want a plain searchable vector collection instead, doc citations, a help index, a product knowledge base, drive [`IVectorStore`](https://github.com/framerslab/agentos/blob/master/src/core/vector-store/IVectorStore.ts) directly and add a content-hash check so re-ingesting a corpus only embeds what actually changed.
 
 ---
 
@@ -155,7 +155,7 @@ The first run embeds the whole corpus. Every run after only embeds the deltas. A
 | `upsert(name, documents)` | Insert-or-replace the changed and new chunks by id. |
 | `query(name, queryEmbedding, { topK, filter })` | Retrieval at read time (see below). |
 
-`fetchByIds` is the load-bearing optional method. A store that does not implement it (some remote or sparse-only indexes) cannot do the skip, and the recipe degrades to "embed everything every run." [`PostgresVectorStore`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/vector_stores/PostgresVectorStore.ts) and the in-memory store both implement it.
+`fetchByIds` is the load-bearing optional method. A store that does not implement it (some remote or sparse-only indexes) cannot do the skip, and the recipe degrades to "embed everything every run." [`PostgresVectorStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/vector_stores/PostgresVectorStore.ts) and the in-memory store both implement it.
 
 ---
 

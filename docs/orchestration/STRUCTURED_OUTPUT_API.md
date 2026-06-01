@@ -429,7 +429,7 @@ fall back to function calling or prompt engineering.
 
 AgentOS provides two ways to work with structured output:
 
-| | `generateObject()` / `streamObject()` | [`StructuredOutputManager`](https://github.com/framersai/agentos/blob/master/src/api/structured/output/StructuredOutputManager.ts) |
+| | `generateObject()` / `streamObject()` | [`StructuredOutputManager`](https://github.com/framerslab/agentos/blob/master/src/api/structured/output/StructuredOutputManager.ts) |
 |---|---|---|
 | **Schema format** | Zod | JSON Schema |
 | **Type safety** | Full TypeScript inference | Manual typing |
@@ -440,7 +440,7 @@ AgentOS provides two ways to work with structured output:
 | **Entity extraction** | Use `generateObject()` with an array schema | Dedicated `extractEntities()` method |
 
 Use `generateObject()` / `streamObject()` for most application code. Use
-[`StructuredOutputManager`](https://github.com/framersai/agentos/blob/master/src/api/structured/output/StructuredOutputManager.ts) when you need fine-grained control over generation
+[`StructuredOutputManager`](https://github.com/framerslab/agentos/blob/master/src/api/structured/output/StructuredOutputManager.ts) when you need fine-grained control over generation
 strategies or parallel function calling.
 
 ---

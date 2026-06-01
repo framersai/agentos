@@ -5,7 +5,7 @@ keywords: [agent planning engine, react planning, tree of thoughts, llm task dec
 
 # AgentOS Planning Engine
 
-[`PlanningEngine`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) is the multi-step task orchestrator for AgentOS agents. A single LLM call answers a single question; a multi-step task (research across sources, draft, critique, revise) requires goal-state retention across turns, step-by-step decomposition, intermediate result inspection, and conditional advance/backtrack logic. [`PlanningEngine`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) provides that loop.
+[`PlanningEngine`](https://github.com/framerslab/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) is the multi-step task orchestrator for AgentOS agents. A single LLM call answers a single question; a multi-step task (research across sources, draft, critique, revise) requires goal-state retention across turns, step-by-step decomposition, intermediate result inspection, and conditional advance/backtrack logic. [`PlanningEngine`](https://github.com/framerslab/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) provides that loop.
 
 Three collaborators compose into the engine: a **Plan Generator** that converts a goal into a multi-step plan (ReAct or Tree-of-Thoughts), a **Task Decomposer** that further decomposes steps when needed (Least-to-Most prompting), and a **Self-Reflector** that critiques results after execution and proposes revisions (Reflexion). The **Execution Engine** runs steps, checkpoints state, rolls back on failure, and ships an autonomous-loop variant that replans and retries until a budget cap is reached. Three external systems are addressable from the engine: the LLM Provider Manager, the tool catalog, and the RAG system.
 
@@ -336,6 +336,6 @@ See `IPlanningEngine.ts` for complete type definitions.
 
 ### Implementation references
 
-- [`packages/agentos/src/orchestration/planner/PlanningEngine.ts`](https://github.com/framersai/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) — main planner class with ReAct + plan-execute-reflect loops
-- [`packages/agentos/src/orchestration/planner/`](https://github.com/framersai/agentos/tree/master/src/orchestration/planner) — plan generation, decomposition, refinement, validation
-- [`packages/agentos/src/orchestration/turn-planner/`](https://github.com/framersai/agentos/tree/master/src/orchestration/turn-planner) — per-turn planning telemetry
+- [`packages/agentos/src/orchestration/planner/PlanningEngine.ts`](https://github.com/framerslab/agentos/blob/master/src/orchestration/planner/PlanningEngine.ts) — main planner class with ReAct + plan-execute-reflect loops
+- [`packages/agentos/src/orchestration/planner/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/planner) — plan generation, decomposition, refinement, validation
+- [`packages/agentos/src/orchestration/turn-planner/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/turn-planner) — per-turn planning telemetry

@@ -1,6 +1,6 @@
 # LLM Providers — multi-provider configuration & routing
 
-AgentOS abstracts every LLM behind a single [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. Eleven providers are wired in directly — nine via API key, two via local CLI bridges that ride an existing Claude Max or Google account subscription. OpenRouter, included in the eleven, fans out to 200+ additional models from the same set of vendors. Every provider speaks the same streaming protocol, supports the same tool-call shape (with the documented exceptions below), and participates in the same cost ledger. The fallback chain is auto-built from whichever keys are set in the environment and is overridable per agent.
+AgentOS abstracts every LLM behind a single [`IProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. Eleven providers are wired in directly — nine via API key, two via local CLI bridges that ride an existing Claude Max or Google account subscription. OpenRouter, included in the eleven, fans out to 200+ additional models from the same set of vendors. Every provider speaks the same streaming protocol, supports the same tool-call shape (with the documented exceptions below), and participates in the same cost ledger. The fallback chain is auto-built from whichever keys are set in the environment and is overridable per agent.
 
 ---
 
@@ -32,7 +32,7 @@ AgentOS abstracts every LLM behind a single [`IProvider`](https://github.com/fra
 
 ## Overview
 
-AgentOS abstracts LLM access behind a unified [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. You configure providers via environment variables, and AgentOS handles model selection, streaming, tool calling, retries, and fallback routing.
+AgentOS abstracts LLM access behind a unified [`IProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface. You configure providers via environment variables, and AgentOS handles model selection, streaming, tool calling, retries, and fallback routing.
 
 **Key features:**
 
@@ -261,7 +261,7 @@ const myAgent = agent({
 });
 ```
 
-For cheap-first routing across multiple models, attach a custom [`IModelRouter`](https://github.com/framersai/agentos/blob/master/src/core/llm/routing/IModelRouter.ts)
+For cheap-first routing across multiple models, attach a custom [`IModelRouter`](https://github.com/framerslab/agentos/blob/master/src/core/llm/routing/IModelRouter.ts)
 via `agent({ router })` — the router decides which provider/model to call per
 request. See [Cost Optimization](./COST_OPTIMIZATION.md) for the full guide.
 
@@ -413,7 +413,7 @@ ollama pull dolphin-mixtral
 
 The agent factory accepts `provider`, `model`, `apiKey`, and `baseUrl`
 directly. There is no separate `LLMProviderConfig` type — these fields live
-on [`AgentOptions`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts) (and on [`BaseAgentConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), so every sub-agent in an
+on [`AgentOptions`](https://github.com/framerslab/agentos/blob/master/src/api/agent.ts) (and on [`BaseAgentConfig`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts), so every sub-agent in an
 `agency()` roster takes the same fields).
 
 ```typescript
@@ -449,7 +449,7 @@ const result = await myAgent.generate(
 
 Implement the `IProvider` interface from `@framers/agentos` to add a custom
 LLM provider. Provider registration today is wired up via
-[`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) — there is no public `registerLLMProvider()`
+[`AIModelProviderManager`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) — there is no public `registerLLMProvider()`
 shortcut yet; instead, instantiate your provider and inject it via the
 manager surfaced on `AgentOSConfig.dependencies` when constructing the
 runtime.
@@ -468,7 +468,7 @@ class MyProvider implements IProvider {
 }
 ```
 
-Look at any class under [`src/core/llm/providers/implementations/`](https://github.com/framersai/agentos/tree/master/src/core/llm/providers/implementations) for a
+Look at any class under [`src/core/llm/providers/implementations/`](https://github.com/framerslab/agentos/tree/master/src/core/llm/providers/implementations) for a
 complete reference — the OpenAI and Anthropic providers are the most fully
 exercised paths.
 

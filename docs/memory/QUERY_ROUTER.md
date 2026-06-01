@@ -1,6 +1,6 @@
 # Query Router
 
-AgentOS includes a [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) that turns one user question into a three-stage pipeline:
+AgentOS includes a [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts) that turns one user question into a three-stage pipeline:
 
 1. classify the query into tier `0` through `3`
 2. retrieve the right amount of context
@@ -25,7 +25,7 @@ The QueryRouter scaffold is ahead of the wired runtime in a few places:
 
 ## Host-Injected Runtime Hooks
 
-You can replace the built-in heuristic branches without forking [`QueryRouter`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
+You can replace the built-in heuristic branches without forking [`QueryRouter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/QueryRouter.ts)
 by passing host-provided callbacks in the constructor:
 
 - `graphExpand(seedChunks)` for GraphRAG or relationship expansion
@@ -38,7 +38,7 @@ mode.
 
 ## Example
 
-Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router.mjs)
+Runnable source: [`packages/agentos/examples/query-router.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router.mjs)
 
 ```ts
 import { QueryRouter } from '@framers/agentos';
@@ -65,7 +65,7 @@ await router.close();
 
 ### Host-Injected Runtime Example
 
-Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framersai/agentos/blob/master/examples/query-router-host-hooks.mjs)
+Runnable source: [`packages/agentos/examples/query-router-host-hooks.mjs`](https://github.com/framerslab/agentos/blob/master/examples/query-router-host-hooks.mjs)
 
 ```ts
 const router = new QueryRouter({
@@ -94,7 +94,7 @@ console.log(router.getCorpusStats()); // graph/deepResearch/rerank runtime modes
 - `githubRepos` optionally enables non-blocking GitHub corpus indexing after `init()`. Newly indexed repo chunks are merged back into the live corpus, keyword fallback, classifier topics, and the vector index when embeddings are active.
 - `deepResearchEnabled` controls whether the tier-3 research branch is attempted; the default core implementation is a local-corpus heuristic, and hosts can still inject a real web-backed implementation.
 - `onClassification` and `onRetrieval` are hooks for consumers that want lightweight runtime integration without reading the full event stream.
-- `router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot with configured path count, loaded chunk/topic/source counts, live bundled platform-knowledge category counts, whether retrieval is running in `vector+keyword-fallback` or `keyword-only` mode, the embedding health field `embeddingStatus`, and the runtime-truth fields `graphRuntimeMode`, `rerankRuntimeMode`, and `deepResearchRuntimeMode`.
+- `router.getCorpusStats()` returns a [`QueryRouterCorpusStats`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) snapshot with configured path count, loaded chunk/topic/source counts, live bundled platform-knowledge category counts, whether retrieval is running in `vector+keyword-fallback` or `keyword-only` mode, the embedding health field `embeddingStatus`, and the runtime-truth fields `graphRuntimeMode`, `rerankRuntimeMode`, and `deepResearchRuntimeMode`.
 - `embeddingStatus: 'active'` means the vector index initialized successfully, `'disabled-no-key'` means init stayed keyword-only because no embedding credential was available, and `'failed-init'` means embedding bootstrap was attempted but failed and the router fell back to keyword-only mode.
 - `graphRuntimeMode: 'heuristic'` means the built-in same-document / heading-overlap expansion is active; `'active'` is reserved for a future wired graph expansion service or a host-injected hook.
 - `rerankRuntimeMode: 'heuristic'` means the built-in lexical reranker is active; `'active'` is reserved for a future wired reranker service.
@@ -102,7 +102,7 @@ console.log(router.getCorpusStats()); // graph/deepResearch/rerank runtime modes
 
 ## Result Metadata
 
-[`QueryResult`](https://github.com/framersai/agentos/blob/master/src/orchestration/pipeline/query/types.ts) includes:
+[`QueryResult`](https://github.com/framerslab/agentos/blob/master/src/orchestration/pipeline/query/types.ts) includes:
 
 - `classification`: the final classification result
 - `sources`: citations built from retrieved chunks
