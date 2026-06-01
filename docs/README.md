@@ -122,5 +122,5 @@
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://frame.dev">Frame.dev</a> · <a href="https://github.com/framerslab">@framersai</a></sub>
+  <sub>Built by <a href="https://frame.dev">Frame.dev</a> · <a href="https://github.com/framerslab">@framerslab</a></sub>
 </p>
