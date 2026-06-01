@@ -43,8 +43,21 @@ export function toOpenAiResponseFormat(
     return undefined;
   }
   if (type === 'json_schema') {
-    // Forward only the OpenAI-recognized keys.
-    return { type, json_schema: rf.json_schema };
+    // OpenAI rejects json_schema mode unless json_schema carries a string
+    // `name` and an object `schema`. A malformed json_schema reaching the API
+    // errors the same way the typeless fallback payload did, so drop it rather
+    // than forward something OpenAI can't use.
+    const js = rf.json_schema;
+    if (
+      !js ||
+      typeof js !== 'object' ||
+      typeof (js as Record<string, unknown>).name !== 'string' ||
+      typeof (js as Record<string, unknown>).schema !== 'object' ||
+      (js as Record<string, unknown>).schema === null
+    ) {
+      return undefined;
+    }
+    return { type, json_schema: js };
   }
   // text | json_object — bare type, stripping any non-OpenAI markers.
   return { type };

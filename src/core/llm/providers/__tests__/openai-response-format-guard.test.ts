@@ -25,6 +25,16 @@ describe('toOpenAiResponseFormat', () => {
     expect(toOpenAiResponseFormat(rf)).toEqual(rf);
   });
 
+  it('DROPS a json_schema missing its required name/schema fields', () => {
+    // OpenAI rejects json_schema mode without json_schema.name + .schema.
+    // A malformed json_schema reaching OpenAI would error the same way the
+    // typeless fallback payload did, so the guard must drop it.
+    expect(toOpenAiResponseFormat({ type: 'json_schema' })).toBeUndefined();
+    expect(toOpenAiResponseFormat({ type: 'json_schema', json_schema: {} })).toBeUndefined();
+    expect(toOpenAiResponseFormat({ type: 'json_schema', json_schema: { name: 'X' } })).toBeUndefined();
+    expect(toOpenAiResponseFormat({ type: 'json_schema', json_schema: { schema: { type: 'object' } } })).toBeUndefined();
+  });
+
   it('passes through json_object and text modes', () => {
     expect(toOpenAiResponseFormat({ type: 'json_object' })).toEqual({ type: 'json_object' });
     expect(toOpenAiResponseFormat({ type: 'text' })).toEqual({ type: 'text' });
