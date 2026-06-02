@@ -11,6 +11,7 @@
 import { DeepgramStreamingSTT } from './providers/DeepgramStreamingSTT.js';
 import { ElevenLabsStreamingSTT } from './providers/ElevenLabsStreamingSTT.js';
 import { ElevenLabsStreamingTTS } from './providers/ElevenLabsStreamingTTS.js';
+import { DeepgramAuraStreamingTTS } from './providers/DeepgramAuraStreamingTTS.js';
 import { OpenAIRealtimeTTS } from './providers/OpenAIRealtimeTTS.js';
 import { ElevenLabsBatchTTS } from './providers/ElevenLabsBatchTTS.js';
 import { OpenAIBatchTTS } from './providers/OpenAIBatchTTS.js';
@@ -45,6 +46,13 @@ export interface VoiceProviderEnvConfig {
   languageHint?: string;
   /** Target cost tier. Reserved for future per-session routing; not used yet. */
   tier?: 'cheap' | 'standard' | 'premium';
+  /**
+   * Which TTS vendor to prefer for first-try synthesis. `'deepgram'` (default)
+   * ranks Deepgram Aura ahead of ElevenLabs; `'elevenlabs'` ranks ElevenLabs
+   * first (used for a paid-tier premium-voice opt-in). Either way the other
+   * vendors stay in the chain as automatic fallbacks.
+   */
+  ttsPreference?: 'deepgram' | 'elevenlabs';
   /** Whether the STT chain keeps a ring buffer + re-routes mid-utterance.
    *  Default true — this is the whole point of the resilience work. */
   enableMidUtteranceFailover?: boolean;
@@ -97,7 +105,15 @@ export function createVoiceProvidersFromEnv(
     );
   }
 
+  // Deepgram Aura is the default first-try TTS (priority 5). An explicit
+  // 'elevenlabs' preference drops Aura behind ElevenLabs streaming (15 > 10).
+  const prefersDeepgram = (config.ttsPreference ?? 'deepgram') === 'deepgram';
   const ttsProviders: Array<IStreamingTTS & HealthyProvider> = [];
+  if (deepgramKey) {
+    ttsProviders.push(
+      new DeepgramAuraStreamingTTS({ apiKey: deepgramKey, priority: prefersDeepgram ? 5 : 15 })
+    );
+  }
   if (elevenLabsKey) {
     ttsProviders.push(
       new ElevenLabsStreamingTTS({ apiKey: elevenLabsKey, priority: 10 })

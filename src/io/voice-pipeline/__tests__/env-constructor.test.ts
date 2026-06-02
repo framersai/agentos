@@ -81,4 +81,30 @@ describe('createVoiceProvidersFromEnv', () => {
         .opts.enableMidSynthesisFailover
     ).toBe(true);
   });
+
+  it('puts Deepgram Aura ahead of ElevenLabs streaming TTS by default', () => {
+    const { tts } = createVoiceProvidersFromEnv({
+      env: { DEEPGRAM_API_KEY: 'dg', ELEVENLABS_API_KEY: 'el', OPENAI_API_KEY: 'op' },
+    });
+    const ids = tts.providers.map((p) => p.providerId);
+    expect(ids).toContain('deepgram-aura');
+    expect(ids).toContain('elevenlabs-streaming');
+    expect(ids.indexOf('deepgram-aura')).toBeLessThan(ids.indexOf('elevenlabs-streaming'));
+  });
+
+  it('puts ElevenLabs streaming TTS ahead of Aura when ttsPreference is elevenlabs', () => {
+    const { tts } = createVoiceProvidersFromEnv({
+      env: { DEEPGRAM_API_KEY: 'dg', ELEVENLABS_API_KEY: 'el', OPENAI_API_KEY: 'op' },
+      ttsPreference: 'elevenlabs',
+    });
+    const ids = tts.providers.map((p) => p.providerId);
+    expect(ids.indexOf('elevenlabs-streaming')).toBeLessThan(ids.indexOf('deepgram-aura'));
+  });
+
+  it('omits Aura TTS when no Deepgram key is set', () => {
+    const { tts } = createVoiceProvidersFromEnv({
+      env: { ELEVENLABS_API_KEY: 'el', OPENAI_API_KEY: 'op' },
+    });
+    expect(tts.providers.map((p) => p.providerId)).not.toContain('deepgram-aura');
+  });
 });
