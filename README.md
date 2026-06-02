@@ -472,7 +472,17 @@ git clone https://github.com/framerslab/agentos.git && cd agentos
 pnpm install && pnpm build && pnpm test
 ```
 
-[Contributing Guide](https://github.com/framerslab/agentos/blob/master/CONTRIBUTING.md) * We use [Conventional Commits](https://www.conventionalcommits.org/).
+We use [Conventional Commits](https://www.conventionalcommits.org/). Project guides:
+
+| Guide | What |
+|---|---|
+| [Contributing](https://github.com/framerslab/agentos/blob/master/CONTRIBUTING.md) | Dev setup, PR checklist, commit conventions, contribution licensing |
+| [Adding an LLM provider](https://github.com/framerslab/agentos/blob/master/docs/contributing/new-provider.md) | Provider interface, acceptance checklist, vendor-neutrality policy |
+| [Maintainers](https://github.com/framerslab/agentos/blob/master/MAINTAINERS.md) | Who reviews and merges changes |
+| [Code of Conduct](https://github.com/framerslab/agentos/blob/master/.github/CODE_OF_CONDUCT.md) | Community standards |
+| [Security Policy](https://github.com/framerslab/agentos/blob/master/.github/SECURITY.md) | Reporting vulnerabilities privately |
+| [Support](https://github.com/framerslab/agentos/blob/master/SUPPORT.md) | Where to get help |
+| [Sponsors](https://github.com/framerslab/agentos/blob/master/SPONSORS.md) | Funding and the vendor-neutral placement policy |
 
 ---
 
