@@ -510,4 +510,6 @@ Sponsor logos appear here, clearly labeled. No sponsors yet. To be the first, em
 
 **Built by [Frame](https://frame.dev) * [Wilds.ai](https://wilds.ai)**
 
+Frame is a member of the [Deepgram Startup Program](https://deepgram.com/startups)
+
 </div>
