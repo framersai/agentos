@@ -128,6 +128,8 @@ export {
   type ElevenLabsStreamingSTTConfig,
   ElevenLabsStreamingTTS,
   type ElevenLabsStreamingTTSConfig,
+  DeepgramAuraStreamingTTS,
+  type DeepgramAuraStreamingTTSConfig,
   AgentSessionVoiceAdapter,
   StreamingSTTChain,
   type StreamingSTTChainOptions,

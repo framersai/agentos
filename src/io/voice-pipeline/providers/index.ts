@@ -19,9 +19,18 @@ export {
   ElevenLabsStreamingTTS,
   type ElevenLabsStreamingTTSConfig,
 } from './ElevenLabsStreamingTTS.js';
+export {
+  DeepgramAuraStreamingTTS,
+  type DeepgramAuraStreamingTTSConfig,
+} from './DeepgramAuraStreamingTTS.js';
 export { AgentSessionVoiceAdapter } from './AgentSessionVoiceAdapter.js';
 export { OpenAIBatchTTS, type OpenAIBatchTTSConfig } from './OpenAIBatchTTS.js';
 export { ElevenLabsBatchTTS, type ElevenLabsBatchTTSConfig } from './ElevenLabsBatchTTS.js';
+export {
+  DeepgramAuraBatchTTS,
+  type DeepgramAuraBatchTTSConfig,
+  chunkForAura,
+} from './DeepgramAuraBatchTTS.js';
 export { BatchTTSFallback } from './BatchTTSFallback.js';
 export { OpenAIRealtimeTTS, type OpenAIRealtimeTTSConfig } from './OpenAIRealtimeTTS.js';
 export {
