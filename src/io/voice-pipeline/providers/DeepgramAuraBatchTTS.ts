@@ -35,6 +35,8 @@ const MAX_CHARS = 2000;
 const SYNTHESIZE_TIMEOUT_MS = 60_000;
 /** Approx MP3 bytes/sec at Aura's default bitrate — used only for a duration estimate. */
 const BYTES_PER_SEC_MP3 = 16_000;
+/** Aura's default linear16 (raw PCM) sample rate; bytes/sec = rate * 2 (16-bit). */
+const DEFAULT_PCM_SAMPLE_RATE = 24_000;
 
 /** Configuration for the Deepgram Aura batch TTS provider. */
 export interface DeepgramAuraBatchTTSConfig {
@@ -62,11 +64,19 @@ export function chunkForAura(text: string, max = MAX_CHARS): string[] {
   const chunks: string[] = [];
   let rest = text.trim();
   while (rest.length > max) {
-    let cut = rest.lastIndexOf('. ', max);
-    if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max);
-    if (cut <= 0) cut = max;
-    chunks.push(rest.slice(0, cut + 1).trim());
-    rest = rest.slice(cut + 1).trim();
+    // Search for a boundary within [0, max-1] so the chunk — including the
+    // boundary character at `cut` — never exceeds `max`. Aura rejects a
+    // request over 2000 characters, so an off-by-one here is a hard failure.
+    let cut = rest.lastIndexOf('. ', max - 1);
+    if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max - 1);
+    if (cut <= 0) {
+      // No sentence/space boundary in range — hard-cut at exactly max.
+      chunks.push(rest.slice(0, max).trim());
+      rest = rest.slice(max).trim();
+    } else {
+      chunks.push(rest.slice(0, cut + 1).trim());
+      rest = rest.slice(cut + 1).trim();
+    }
   }
   if (rest) chunks.push(rest);
   return chunks;
@@ -156,7 +166,10 @@ export class DeepgramAuraBatchTTS implements IBatchTTS, HealthyProvider {
     }
 
     const audio = Buffer.concat(buffers);
-    const durationMs = Math.round((audio.byteLength / BYTES_PER_SEC_MP3) * 1000);
+    // Raw PCM (linear16) is uncompressed at sampleRate * 2 bytes/sec (16-bit);
+    // mp3/opus are compressed, estimated at BYTES_PER_SEC_MP3.
+    const bytesPerSec = format === 'pcm' ? DEFAULT_PCM_SAMPLE_RATE * 2 : BYTES_PER_SEC_MP3;
+    const durationMs = Math.round((audio.byteLength / bytesPerSec) * 1000);
     return { audio, format, durationMs, provider: this.providerId };
   }
 

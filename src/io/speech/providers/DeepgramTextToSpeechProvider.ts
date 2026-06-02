@@ -57,9 +57,12 @@ const AURA_VOICES: readonly SpeechVoice[] = [
 function encodingFor(format: string | undefined): { encoding: string; mime: string } {
   switch (format) {
     case 'opus':
-      return { encoding: 'opus', mime: 'audio/opus' };
+      // Aura returns Opus in an Ogg container.
+      return { encoding: 'opus', mime: 'audio/ogg;codecs=opus' };
     case 'wav':
     case 'pcm':
+      // The request sends only `encoding`, so Aura returns headerless
+      // linear16 PCM (no WAV/RIFF header) — audio/L16 is the honest type.
       return { encoding: 'linear16', mime: 'audio/L16' };
     case 'flac':
       return { encoding: 'flac', mime: 'audio/flac' };
@@ -79,11 +82,17 @@ function chunkText(text: string, max = MAX_CHARS): string[] {
   const chunks: string[] = [];
   let rest = text.trim();
   while (rest.length > max) {
-    let cut = rest.lastIndexOf('. ', max);
-    if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max);
-    if (cut <= 0) cut = max;
-    chunks.push(rest.slice(0, cut + 1).trim());
-    rest = rest.slice(cut + 1).trim();
+    // Search within [0, max-1] so the chunk (including the boundary char)
+    // never exceeds `max`; Aura rejects a request over 2000 characters.
+    let cut = rest.lastIndexOf('. ', max - 1);
+    if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max - 1);
+    if (cut <= 0) {
+      chunks.push(rest.slice(0, max).trim());
+      rest = rest.slice(max).trim();
+    } else {
+      chunks.push(rest.slice(0, cut + 1).trim());
+      rest = rest.slice(cut + 1).trim();
+    }
   }
   if (rest) chunks.push(rest);
   return chunks;

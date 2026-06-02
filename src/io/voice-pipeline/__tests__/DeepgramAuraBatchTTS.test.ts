@@ -67,6 +67,18 @@ describe('DeepgramAuraBatchTTS', () => {
     for (const c of chunks) expect(c.length).toBeLessThanOrEqual(2000);
   });
 
+  it('chunkForAura never exceeds max with no boundaries or a boundary at max', () => {
+    // No spaces — forces the hard-cut fallback.
+    for (const c of chunkForAura('x'.repeat(5000), 2000)) {
+      expect(c.length).toBeLessThanOrEqual(2000);
+    }
+    // A sentence boundary landing exactly at the max must not push a max+1 chunk.
+    const boundaryAtMax = 'a'.repeat(1999) + '. ' + 'b'.repeat(2500);
+    for (const c of chunkForAura(boundaryAtMax, 2000)) {
+      expect(c.length).toBeLessThanOrEqual(2000);
+    }
+  });
+
   it('chunkForAura returns a single chunk for short text', () => {
     expect(chunkForAura('short', 2000)).toEqual(['short']);
   });

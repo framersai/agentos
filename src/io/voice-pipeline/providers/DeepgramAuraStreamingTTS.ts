@@ -176,7 +176,10 @@ class DeepgramAuraStreamingTTSSession extends EventEmitter implements StreamingT
   private _handleMessage(data: Buffer, isBinary: boolean): void {
     if (isBinary) {
       const audioBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-      const durationMs = Math.round((audioBuffer.byteLength / BYTES_PER_SEC_MP3) * 1000);
+      // Raw PCM (linear16) is uncompressed at sampleRate * 2 bytes/sec (16-bit);
+      // mp3/opus are compressed, estimated at BYTES_PER_SEC_MP3.
+      const bytesPerSec = this.format === 'pcm' ? this.sampleRate * 2 : BYTES_PER_SEC_MP3;
+      const durationMs = Math.round((audioBuffer.byteLength / bytesPerSec) * 1000);
       const chunk: EncodedAudioChunk = {
         audio: audioBuffer,
         format: this.format,
