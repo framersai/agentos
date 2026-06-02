@@ -1,3 +1,11 @@
+## <small>0.9.31 (2026-06-01)</small>
+
+* chore: finish framersai -> framerslab (bare refs, github.io, api owners) ([777ba71f3d49405e83cd1f95d04ccc3800b81758](https://github.com/framerslab/agentos/commit/777ba71f3d49405e83cd1f95d04ccc3800b81758))
+* chore: point github URLs to framerslab org ([fa00178f051a79e0b8853c3cd11aecb4da33cf20](https://github.com/framerslab/agentos/commit/fa00178f051a79e0b8853c3cd11aecb4da33cf20))
+* chore: rename to @framers npm scope and framerslab org/handle ([2b69dcfceb2e34a3b28ba4c2f5e95283cbc45baf](https://github.com/framerslab/agentos/commit/2b69dcfceb2e34a3b28ba4c2f5e95283cbc45baf))
+* fix(openai): guard response_format on fallback so a primary provider's structured-output payload can't reach OpenAI malformed ([5b107d42416605719ca4d2e4f8a67bdbabb77a96](https://github.com/framerslab/agentos/commit/5b107d42416605719ca4d2e4f8a67bdbabb77a96))
+* fix(openai): validate json_schema name+schema fields before forwarding to OpenAI ([e8c2fe3c7c8d99d2bd404f1a13343e436b0012a3](https://github.com/framerslab/agentos/commit/e8c2fe3c7c8d99d2bd404f1a13343e436b0012a3))
+
 ## <small>0.9.30 (2026-05-31)</small>
 
 * fix(api): size generateObject maxTokens from string .max() + correct stale Sonnet outputTokenLimit metadata ([3af26b8dc622f573357e4f2fd70045d54d5f4664](https://github.com/framersai/agentos/commit/3af26b8dc622f573357e4f2fd70045d54d5f4664))
