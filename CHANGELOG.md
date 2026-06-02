@@ -1,3 +1,12 @@
+## <small>0.9.32 (2026-06-02)</small>
+
+* Merge remote-tracking branch 'origin/master' ([85240a30dc136be1da679bc45a722efb09d07b95](https://github.com/framerslab/agentos/commit/85240a30dc136be1da679bc45a722efb09d07b95))
+* feat(speech): register Deepgram Aura as a core TTS provider ([048c7b1f575e779097fbae0ddc5cb3bf26417e3c](https://github.com/framerslab/agentos/commit/048c7b1f575e779097fbae0ddc5cb3bf26417e3c))
+* feat(voice): add Deepgram Aura batch TTS provider ([47359757862df3eaf96e4f5085089a0f29c2a4d7](https://github.com/framerslab/agentos/commit/47359757862df3eaf96e4f5085089a0f29c2a4d7))
+* feat(voice): add Deepgram Aura streaming TTS provider ([ed53ce2a17e117e0bf40a5e384fa7348edb9f643](https://github.com/framerslab/agentos/commit/ed53ce2a17e117e0bf40a5e384fa7348edb9f643))
+* feat(voice): export Deepgram Aura providers ([5ddcd343215ab5c7d0ffaae19eaddc452d6b6ebc](https://github.com/framerslab/agentos/commit/5ddcd343215ab5c7d0ffaae19eaddc452d6b6ebc))
+* feat(voice): prefer Deepgram Aura TTS in the env-built chain ([f00e2fe06863c8b5ae2f53c7edf8eaccec1b3b9e](https://github.com/framerslab/agentos/commit/f00e2fe06863c8b5ae2f53c7edf8eaccec1b3b9e))
+
 ## <small>0.9.31 (2026-06-01)</small>
 
 * chore: finish framersai -> framerslab (bare refs, github.io, api owners) ([777ba71f3d49405e83cd1f95d04ccc3800b81758](https://github.com/framerslab/agentos/commit/777ba71f3d49405e83cd1f95d04ccc3800b81758))
