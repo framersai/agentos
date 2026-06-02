@@ -476,6 +476,14 @@ pnpm install && pnpm build && pnpm test
 
 ---
 
+## Sponsors
+
+AgentOS is Apache-2.0 and free. Provider support is decided on technical merit and the provider list is neutral: placement and ordering are not for sale. If your company depends on AgentOS, you can support its maintenance through sponsorship. See [SPONSORS.md](./SPONSORS.md).
+
+Sponsor logos appear here, clearly labeled. No sponsors yet. To be the first, email team@frame.dev.
+
+---
+
 ## License
 
 [Apache 2.0](./LICENSE)

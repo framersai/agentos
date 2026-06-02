@@ -1,27 +1,7 @@
 # Contributing
 
-Thanks for your interest in contributing! We welcome PRs for bug fixes, docs, features, and examples.
+The full contributing guide lives at the repository root: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
-## Getting Started
-- Fork and clone the repository
-- Install dependencies
-- Run tests to ensure a clean baseline
+Adding an LLM provider? Start with the [provider integration guide](../docs/contributing/new-provider.md).
 
-## Commit Messages
-Use Conventional Commits (e.g., `feat:`, `fix:`, `docs:`).
-
-## Pull Requests
-- Include tests and docs for changes
-- Ensure CI is green
-- Keep PRs focused and small where possible
-
-## Code of Conduct
-By participating, you agree to abide by our [Code of Conduct](./CODE_OF_CONDUCT.md).
-
-## Security
-Please report vulnerabilities responsibly via [Security Policy](./SECURITY.md).
-
-## Contact
-Questions? Email team@frame.dev or visit https://frame.dev.
-
-
+Interested in promotion or featured placement? That is sponsorship, handled separately: [SPONSORS.md](../SPONSORS.md).

@@ -1,0 +1,10 @@
+# Code owners are requested for review automatically.
+# Swap to a team (for example @framerslab/maintainers) if ownership grows.
+# Maintainer list: MAINTAINERS.md
+
+# Default owners
+*                                   @jddunn @Victor-Evogor
+
+# LLM provider integrations: each provider needs an owner who maintains it
+# when the upstream API changes. Add yourself here in your provider PR.
+/src/core/llm/providers/            @jddunn @Victor-Evogor
