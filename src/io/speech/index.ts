@@ -8,6 +8,7 @@ export * from './SpeechSession.js';
 export * from './SpeechRuntime.js';
 export * from './providers/OpenAITextToSpeechProvider.js';
 export * from './providers/ElevenLabsTextToSpeechProvider.js';
+export * from './providers/DeepgramTextToSpeechProvider.js';
 export * from './providers/AzureSpeechTTSProvider.js';
 // STT/VAD providers have moved to the hearing/ module
 export * from '../hearing/providers/OpenAIWhisperSpeechToTextProvider.js';

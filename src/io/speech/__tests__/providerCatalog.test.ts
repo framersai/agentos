@@ -7,6 +7,14 @@ import { findSpeechProviderCatalogEntry, SPEECH_PROVIDER_CATALOG } from '../prov
  * These tests act as regression guards against accidental catalog changes.
  */
 describe('providerCatalog', () => {
+  it('should have a deepgram-aura TTS entry with streaming enabled', () => {
+    const entry = findSpeechProviderCatalogEntry('deepgram-aura');
+    expect(entry).toBeDefined();
+    expect(entry!.kind).toBe('tts');
+    expect(entry!.streaming).toBe(true);
+    expect(entry!.envVars).toContain('DEEPGRAM_API_KEY');
+  });
+
   it('should have a deepgram-batch entry with streaming disabled', () => {
     const entry = findSpeechProviderCatalogEntry('deepgram-batch');
     expect(entry).toBeDefined();

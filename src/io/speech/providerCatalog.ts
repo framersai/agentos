@@ -146,6 +146,18 @@ export const SPEECH_PROVIDER_CATALOG: readonly SpeechProviderCatalogEntry[] = [
     features: ['cloud', 'tts', 'voice-cloning'],
   },
   {
+    id: 'deepgram-aura',
+    kind: 'tts',
+    label: 'Deepgram Aura',
+    envVars: ['DEEPGRAM_API_KEY'],
+    local: false,
+    streaming: true,
+    description: 'Low-latency neural TTS via Deepgram Aura-2 (REST + WebSocket).',
+    defaultModel: 'aura-2',
+    defaultVoice: 'aura-2-thalia-en',
+    features: ['cloud', 'tts', 'streaming', 'low-latency'],
+  },
+  {
     id: 'google-cloud-tts',
     kind: 'tts',
     label: 'Google Cloud TTS',
