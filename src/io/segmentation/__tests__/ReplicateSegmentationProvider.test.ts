@@ -40,6 +40,16 @@ describe('ReplicateSegmentationProvider', () => {
     expect(provider.supportedModes()).toEqual(['text', 'automatic']);
   });
 
+  it('rejects modelIds that are not exactly "owner/name" before any request', async () => {
+    const image = await sourceImage();
+    for (const modelId of ['sam2', 'owner/', '/name', 'a/b/c']) {
+      await expect(
+        provider.segment({ modelId, image, mode: 'automatic' }),
+      ).rejects.toMatchObject({ code: 'invalid_request' });
+    }
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('automatic mode: resolves version, posts to /predictions, decodes individual_masks', async () => {
     const url = await maskDataUrl();
     mockFetch

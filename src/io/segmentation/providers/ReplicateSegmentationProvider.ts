@@ -198,8 +198,10 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
     const cached = this.versionCache.get(modelId);
     if (cached) return cached;
 
-    const slash = modelId.indexOf('/');
-    if (slash < 1) {
+    // Require exactly "owner/name" (both non-empty) before building the model
+    // URL, so a malformed override can't produce a "models//name" path.
+    const parts = modelId.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
       throw new SegmentationProviderError(
         `Invalid modelId "${modelId}": expected "owner/model" or "owner/model:version".`,
         'invalid_request',
