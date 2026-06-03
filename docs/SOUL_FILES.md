@@ -17,7 +17,7 @@ injects the prose as system messages.
 ├── STYLE.md      voice, syntax, vocabulary patterns           (optional)
 ├── IDENTITY.md   display card: name, role, agent-ID, avatar   (optional, derived from SOUL frontmatter when absent)
 ├── AGENTS.md     procedural rules: workflows, file access     (optional)
-├── MEMORY.md     long-term facts; daily logs at memory/YYYY-MM-DD.md  (auto-managed)
+├── memory/       long-term memory wiki: index.md + entities/ + concepts/ + log/  (auto-managed)
 └── examples/     good-outputs.md + bad-outputs.md             (optional)
 ```
 
@@ -27,11 +27,34 @@ injects the prose as system messages.
 | **STYLE.md** | Voice patterns, vocabulary, register | Default style from `SOUL.md` body only |
 | **IDENTITY.md** | Display card: name, role, agent-ID, avatar | Derived from SOUL.md frontmatter |
 | **AGENTS.md** | Procedural rules, session-start checks, workflow steps | No proactive behavior; manual triggers only |
-| **MEMORY.md** | Long-term persistent facts | Cold start every session |
+| **memory/** | Long-term memory wiki (markdown pages the agent compiles and reads) | Cold start every session |
 | **examples/** | Good/bad output calibration for emergent training | No automated voice calibration |
 
 The principle from OpenClaw: **personality in SOUL.md, procedures in AGENTS.md.**
 Don't mix them.
+
+## The `memory/` Wiki
+
+Long-term memory is a directory of markdown pages: a wiki the agent compiles from
+what it learns and reads back on demand. It is the source of truth, and the vector
+and graph index is rebuilt from it.
+
+```
+<agent-id>/memory/
+├── index.md        catalog of every page, injected into the system prelude
+├── entities/       one page per person, place, thing, or project
+├── concepts/       one page per topic or fact-cluster
+├── log/            append-only daily logs (log/YYYY-MM-DD.md)
+└── .meta/          page hashes, backlinks, and the compile watermark
+```
+
+Pages are markdown with YAML frontmatter and `[[wikilinks]]`. The agent reads
+`index.md` from its prelude, then opens any page with the `read_memory_page` tool.
+On the consolidation tick and at session end, the LLM folds new traces into pages,
+merging rather than clobbering human edits; git versions every change.
+
+A legacy single-file `MEMORY.md` auto-migrates into `memory/index.md` on first load
+and is left untouched on disk.
 
 ## SOUL.md Format
 
