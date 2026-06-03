@@ -55,6 +55,7 @@ import * as fs from 'node:fs/promises';
 import { readFileSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import matter from 'gray-matter';
+import { ensureMemoryDir } from '../memory/wiki/migrateMemoryMd.js';
 import type { IPersonaDefinition } from './IPersonaDefinition.js';
 
 /**
@@ -74,9 +75,13 @@ export interface LoadedSoul {
   identityContent?: string;
   /** Raw AGENTS.md content if present. Procedural rules / workflow definitions. */
   agentsContent?: string;
-  /** Raw MEMORY.md seed content if present. Loaded into long-term memory. */
+  /** Raw MEMORY.md seed content if present (legacy fallback). */
   memoryContent?: string;
-  /** Path to the agent's workspace dir (where MEMORY.md daily logs accumulate). */
+  /** Absolute path to the memory/ wiki dir (created/migrated on load). */
+  memoryDir?: string;
+  /** Contents of memory/index.md, for system-prelude injection. */
+  wikiIndex?: string;
+  /** Path to the agent's workspace dir. */
   workspaceDir: string;
   /** Frontmatter parsed from SOUL.md — useful for inspection/debugging. */
   frontmatter: SoulFrontmatter;
@@ -209,6 +214,10 @@ export async function loadSoul(options: SoulLoaderOptions): Promise<LoadedSoul> 
   const agentsContent = await readOptional(path.join(workspaceDir, 'AGENTS.md'));
   const memoryContent = await readOptional(path.join(workspaceDir, 'MEMORY.md'));
 
+  // Resolve the markdown wiki memory dir (idempotent migration of legacy MEMORY.md).
+  const memoryDir = ensureMemoryDir(workspaceDir);
+  const wikiIndex = readOptionalSync(path.join(memoryDir, 'index.md'));
+
   // Build IPersonaDefinition from frontmatter + soul body
   const personaDefinition = frontmatterToPersona(frontmatter, soulContent, styleContent);
 
@@ -219,6 +228,8 @@ export async function loadSoul(options: SoulLoaderOptions): Promise<LoadedSoul> 
     identityContent,
     agentsContent,
     memoryContent,
+    memoryDir,
+    wikiIndex,
     workspaceDir,
     frontmatter,
   };
@@ -270,6 +281,10 @@ export function loadSoulSync(options: SoulLoaderOptions): LoadedSoul {
   const agentsContent = readOptionalSync(path.join(workspaceDir, 'AGENTS.md'));
   const memoryContent = readOptionalSync(path.join(workspaceDir, 'MEMORY.md'));
 
+  // Resolve the markdown wiki memory dir (idempotent migration of legacy MEMORY.md).
+  const memoryDir = ensureMemoryDir(workspaceDir);
+  const wikiIndex = readOptionalSync(path.join(memoryDir, 'index.md'));
+
   const personaDefinition = frontmatterToPersona(frontmatter, soulContent, styleContent);
 
   return {
@@ -279,6 +294,8 @@ export function loadSoulSync(options: SoulLoaderOptions): LoadedSoul {
     identityContent,
     agentsContent,
     memoryContent,
+    memoryDir,
+    wikiIndex,
     workspaceDir,
     frontmatter,
   };
