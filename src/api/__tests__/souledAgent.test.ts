@@ -6,7 +6,7 @@ import * as path from 'node:path';
 // Spy on the real `agent` factory so we can inspect what souledAgent passes it,
 // while keeping loadSoulFromOption (and the rest of agent.js) real.
 const { agentSpy } = vi.hoisted(() => ({
-  agentSpy: vi.fn((o: unknown) => ({ __agentOpts: o, generate: async () => ({ text: '' }) })),
+  agentSpy: vi.fn((o: unknown) => ({ __agentOpts: o, generate: async () => ({ text: '' }), close: async () => {} })),
 }));
 vi.mock('../agent.js', async (orig) => {
   const actual = await (orig as () => Promise<Record<string, unknown>>)();
@@ -14,6 +14,7 @@ vi.mock('../agent.js', async (orig) => {
 });
 
 import { souledAgent } from '../souledAgent.js';
+import { Memory } from '../../cognition/memory/io/facade/Memory.js';
 
 let dir: string;
 beforeEach(() => {
@@ -41,6 +42,14 @@ describe('souledAgent', () => {
     expect(toolNames).toContain('read_memory_page');
     expect(fs.existsSync(path.join(dir, 'memory', '.store', 'memory.sqlite'))).toBe(true);
     expect(fs.existsSync(path.join(dir, 'memory', 'index.md'))).toBe(true);
+  });
+
+  it('closes the memory store when the agent is closed', async () => {
+    const closeSpy = vi.spyOn(Memory.prototype, 'close');
+    const a = (await souledAgent({ provider: 'openai', model: 'gpt-4o', soul: dir } as any)) as any;
+    await a.close();
+    expect(closeSpy).toHaveBeenCalled();
+    closeSpy.mockRestore();
   });
 
   it('falls back to a plain agent for an inline soul with no workspace', async () => {

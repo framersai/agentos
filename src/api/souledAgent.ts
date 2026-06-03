@@ -105,5 +105,18 @@ export async function souledAgent(opts: SouledAgentOptions): Promise<Agent> {
     priorTools && !Array.isArray(priorTools) ? priorTools : augmentedTools
   ) as AgentOptions['tools'];
 
-  return agent({ ...opts, memoryProvider: provider, tools });
+  const built = agent({ ...opts, memoryProvider: provider, tools });
+
+  // Close the backing store when the agent is disposed, so long-lived hosts that
+  // spawn many souled agents don't leak SQLite connections / file handles.
+  const originalClose = built.close.bind(built);
+  built.close = async () => {
+    try {
+      await originalClose();
+    } finally {
+      await memory.close();
+    }
+  };
+
+  return built;
 }
