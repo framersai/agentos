@@ -32,7 +32,7 @@ export class InvalidSegmentationPromptError extends Error {
 }
 
 /** Discriminates the kind of provider-level failure. */
-export type SegmentationErrorCode = 'provider_failed' | 'timeout';
+export type SegmentationErrorCode = 'provider_failed' | 'timeout' | 'invalid_request';
 
 /** Wraps provider/network failures and poll timeouts. */
 export class SegmentationProviderError extends Error {

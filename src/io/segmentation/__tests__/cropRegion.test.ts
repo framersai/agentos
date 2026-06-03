@@ -26,4 +26,19 @@ describe('cropRegion', () => {
     const alphaAt = (x: number, y: number) => data[(y * info.width + x) * info.channels + 3];
     expect(alphaAt(3, 3)).toBeGreaterThan(200);
   });
+
+  it('clamps padding at the image edge without overshooting', async () => {
+    const sharp = (await import('sharp')).default;
+    const source = await sharp({ create: { width: 20, height: 20, channels: 3, background: { r: 10, g: 10, b: 10 } } }).png().toBuffer();
+    const overlay = await sharp({ create: { width: 4, height: 4, channels: 3, background: { r: 255, g: 255, b: 255 } } }).png().toBuffer();
+    const maskPng = await sharp({ create: { width: 20, height: 20, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+      .composite([{ input: overlay, left: 1, top: 1 }]).png().toBuffer();
+    const mask: SegmentMask = { mask: maskPng, bbox: { x: 1, y: 1, width: 4, height: 4 }, score: 1, index: 0 };
+
+    // bbox [1,1,4,4] + pad 5 -> region clamped to [0,0)..[10,10) at the top-left edge.
+    const out = await cropRegion(source, mask, { pad: 5 });
+    const meta = await sharp(out).metadata();
+    expect(meta.width).toBe(10);
+    expect(meta.height).toBe(10);
+  });
 });

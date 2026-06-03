@@ -39,12 +39,16 @@ export async function cropRegion(
     .png()
     .toBuffer();
 
-  const x = Math.max(0, mask.bbox.x - pad);
-  const y = Math.max(0, mask.bbox.y - pad);
-  const w = Math.min(W - x, mask.bbox.width + pad * 2);
-  const h = Math.min(H - y, mask.bbox.height + pad * 2);
+  // Clamp each edge independently so padding near an image boundary does not
+  // overshoot the opposite edge.
+  const left = Math.max(0, mask.bbox.x - pad);
+  const top = Math.max(0, mask.bbox.y - pad);
+  const right = Math.min(W, mask.bbox.x + mask.bbox.width + pad);
+  const bottom = Math.min(H, mask.bbox.y + mask.bbox.height + pad);
+  const w = right - left;
+  const h = bottom - top;
 
-  let out = sharp(rgba).extract({ left: x, top: y, width: w, height: h });
+  let out = sharp(rgba).extract({ left, top, width: w, height: h });
   if (opts.background === 'opaque') out = out.flatten({ background: { r: 0, g: 0, b: 0 } });
   return out.png().toBuffer();
 }

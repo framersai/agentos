@@ -160,6 +160,12 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
       });
     } else {
       const slash = modelId.indexOf('/');
+      if (slash < 1) {
+        throw new SegmentationProviderError(
+          `Invalid modelId "${modelId}": expected "owner/model" or "owner/model:version".`,
+          'invalid_request',
+        );
+      }
       const owner = modelId.substring(0, slash);
       const name = modelId.substring(slash + 1);
       res = await fetch(`${REPLICATE_BASE}/models/${owner}/${name}/predictions`, {

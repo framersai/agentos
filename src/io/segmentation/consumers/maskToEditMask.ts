@@ -23,6 +23,9 @@ export async function maskToEditMask(
   const first = await sharp(list[0].mask).metadata();
   const width = opts.width ?? first.width ?? 0;
   const height = opts.height ?? first.height ?? 0;
+  if (width <= 0 || height <= 0) {
+    throw new Error('maskToEditMask: could not determine mask dimensions; pass opts.width and opts.height.');
+  }
 
   const layers = await Promise.all(
     list.map(async (m) => ({

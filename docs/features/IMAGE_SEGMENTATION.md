@@ -187,7 +187,7 @@ for (const m of masks) {
 |-------|------|
 | `InvalidSegmentationPromptError` | Zero or more than one prompt mode supplied |
 | `SegmentationModeNotSupportedError` | The provider does not support the resolved mode |
-| `SegmentationProviderError` | Provider/network failure (`code: 'provider_failed'`) or poll timeout (`code: 'timeout'`) |
+| `SegmentationProviderError` | Provider/network failure (`code: 'provider_failed'`), poll timeout (`code: 'timeout'`), or malformed model id (`code: 'invalid_request'`) |
 
 ---
 

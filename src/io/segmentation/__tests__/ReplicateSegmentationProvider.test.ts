@@ -154,4 +154,11 @@ describe('ReplicateSegmentationProvider — polling and errors', () => {
     expect(result.masks[0].score).toBeCloseTo(0.9);
     expect(result.masks[0].index).toBe(0);
   });
+
+  it('rejects a modelId without an owner/name slash before any fetch', async () => {
+    await expect(
+      provider.segment({ modelId: 'sam2', image: await sourceImage(), mode: 'automatic' }),
+    ).rejects.toMatchObject({ name: 'SegmentationProviderError', code: 'invalid_request' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
 });
