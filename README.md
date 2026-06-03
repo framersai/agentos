@@ -488,11 +488,22 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Project gui
 
 ## Startups & Partnerships
 
-AgentOS is Apache-2.0 and free. The provider list is decided on technical merit and stays neutral: placement there is not for sale. Companies can support AgentOS through sponsorship or partnership. See [SPONSORS.md](./SPONSORS.md).
+AgentOS is Apache-2.0 and free. The provider list is decided on technical merit and stays neutral, and placement there is never sold. Companies engage through partner startup programs, sponsorship, or a provider integration. See [SPONSORS.md](./SPONSORS.md).
 
-**Startup Program:** Frame, the team behind AgentOS, is a member of the [Deepgram Startup Program](https://deepgram.com/startups).
+### Programs & partners
 
-Interested in partnering or sponsoring? Email team@frame.dev.
+| Partner | Type | Provides | Since |
+|:-:|:--|:--|:-:|
+| [![Deepgram](https://img.shields.io/badge/Deepgram-13EF93?style=for-the-badge&logo=deepgram&logoColor=000000)](https://deepgram.com/startups) | Startup Program | Speech-to-text + text-to-speech credits, go-to-market | 2026 |
+
+### Ways to engage
+
+| Track | What it is | Where |
+|:--|:--|:--|
+| **Sponsor** | Fund development. Disclosed logo placement + release-notes credit. | [SPONSORS.md](./SPONSORS.md) |
+| **Provider integration** | Ship your model or API as a supported provider. Free, on technical merit. | [Provider guide](./docs/contributing/new-provider.md) |
+
+Interested? Email team@frame.dev.
 
 ---
 
@@ -511,7 +522,5 @@ Interested in partnering or sponsoring? Email team@frame.dev.
 </a>
 
 **Built by [Frame](https://frame.dev) * [Wilds.ai](https://wilds.ai)**
-
-Frame is a member of the [Deepgram Startup Program](https://deepgram.com/startups)
 
 </div>
