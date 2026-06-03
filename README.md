@@ -486,13 +486,13 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Project gui
 
 ---
 
-## Sponsors
+## Startups & Partnerships
 
-AgentOS is Apache-2.0 and free. Provider support is decided on technical merit and the provider list is neutral: placement and ordering are not for sale. If your company depends on AgentOS, you can support its maintenance through sponsorship. See [SPONSORS.md](./SPONSORS.md).
+AgentOS is Apache-2.0 and free. The provider list is decided on technical merit and stays neutral: placement there is not for sale. Companies can support AgentOS through sponsorship or partnership. See [SPONSORS.md](./SPONSORS.md).
 
 **Startup Program:** Frame, the team behind AgentOS, is a member of the [Deepgram Startup Program](https://deepgram.com/startups).
 
-Want your company here? Email team@frame.dev.
+Interested in partnering or sponsoring? Email team@frame.dev.
 
 ---
 
