@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ReadMemoryPageTool } from '../ReadMemoryPageTool.js';
-import type { WikiPage } from '../../../substrate/memory/wiki/types.js';
+import type { WikiPage } from '../../../../substrate/memory/wiki/types.js';
 
 const page: WikiPage = {
   id: 'entities/johnny',

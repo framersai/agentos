@@ -476,8 +476,10 @@ export function buildSystemPrompt(opts: AgentOptions): string | undefined {
       sections.push(`## Style\n\n${loaded.styleContent}`);
     }
     // The memory wiki's index.md catalog. The agent reads it to know what it
-    // remembers, then pulls full pages via the read_memory_page tool.
-    if (loaded?.wikiIndex?.trim()) {
+    // remembers, then pulls full pages via the read_memory_page tool. Skip the
+    // empty catalog (a bare "# Memory Index") so agents with no memory yet keep
+    // a clean prompt.
+    if (loaded?.wikiIndex?.trim() && loaded.wikiIndex.trim() !== '# Memory Index') {
       sections.push(
         '## Long-Term Memory (index)\n\n' +
           'You maintain a memory wiki. This is its index. ' +
