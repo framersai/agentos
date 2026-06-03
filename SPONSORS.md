@@ -32,7 +32,7 @@ Every sponsor placement is labeled as a sponsor or as sponsored. Any material co
 
 ## Accelerator and credit programs
 
-Membership in a third-party startup program, accelerator, or credit program (cloud credits, model credits, partner perks) is a relationship of the company, Frame, not a sponsorship of this repository. Those are not listed here and have no bearing on the provider list. Where AgentOS uses such a service in production, it is credited factually as a supported provider or as "powered by," not as a sponsor of the project.
+Membership in a third-party startup program, accelerator, or credit program (cloud credits, model credits, partner perks) is a relationship of the company, Frame, not a sponsorship of this repository. Such memberships may be acknowledged in the README sponsors section, clearly labeled as a program rather than a paid placement, and have no bearing on the neutral provider list. Where AgentOS uses such a service in production, it is also credited factually as a supported provider or as "powered by."
 
 ## Become a sponsor
 
