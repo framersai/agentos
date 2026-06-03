@@ -22,17 +22,38 @@ declare module 'graphology-communities-louvain' {
 }
 
 declare module 'sharp' {
+  interface SharpRawOptions {
+    width: number;
+    height: number;
+    channels: number;
+  }
+
   interface Sharp {
     removeAlpha(): Sharp;
+    ensureAlpha(alpha?: number): Sharp;
     toColourspace(space: string): Sharp;
+    greyscale(greyscale?: boolean): Sharp;
+    grayscale(grayscale?: boolean): Sharp;
+    negate(options?: any): Sharp;
+    sharpen(options?: any): Sharp;
+    normalize(options?: any): Sharp;
+    flatten(options?: any): Sharp;
+    composite(images: any[]): Sharp;
+    joinChannel(images: any, options?: { raw?: SharpRawOptions }): Sharp;
+    extract(region: { left: number; top: number; width: number; height: number }): Sharp;
+    png(options?: any): Sharp;
     raw(): Sharp;
-    toBuffer(options?: { resolveWithObject: boolean }): Promise<{ data: Buffer; info: any }>;
+    toBuffer(): Promise<Buffer>;
+    toBuffer(options: { resolveWithObject: boolean }): Promise<{ data: Buffer; info: any }>;
     resize(width?: number, height?: number, options?: any): Sharp;
     toFormat(format: string, options?: any): Sharp;
     metadata(): Promise<any>;
   }
 
-  function sharp(input?: Buffer | string | ArrayBuffer): Sharp;
+  function sharp(
+    input?: Buffer | string | ArrayBuffer | { create?: any; text?: any; raw?: any },
+    options?: { raw?: SharpRawOptions; [key: string]: any },
+  ): Sharp;
   export default sharp;
 }
 

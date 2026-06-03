@@ -317,6 +317,31 @@ export { upscaleImage } from './api/upscaleImage.js';
 export type { UpscaleImageOptions, UpscaleImageResult } from './api/upscaleImage.js';
 export { variateImage } from './api/variateImage.js';
 export type { VariateImageOptions, VariateImageResult } from './api/variateImage.js';
+export { segment } from './api/segment.js';
+export {
+  maskToEditMask,
+  cropRegion,
+  ReplicateSegmentationProvider,
+  registerSegmentationProvider,
+  resolveSegmentationProvider,
+  resetSegmentationProviders,
+  SegmentationModeNotSupportedError,
+  InvalidSegmentationPromptError,
+  SegmentationProviderError,
+} from './io/segmentation/index.js';
+export type {
+  SegmentOptions,
+  SegmentationResult,
+  SegmentMask,
+  SegmentationMode,
+  SegmentationBox,
+  SegmentationPoint,
+  SegmentationRequest,
+  ISegmentationProvider,
+  SegmentationProviderId,
+  SegmentationProviderOptionBag,
+  ReplicateSegmentationOptions,
+} from './io/segmentation/index.js';
 export { generateVideo } from './api/generateVideo.js';
 export type { GenerateVideoOptions, GenerateVideoResult } from './api/generateVideo.js';
 export { generateMusic } from './api/generateMusic.js';
