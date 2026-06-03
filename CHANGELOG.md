@@ -1,3 +1,12 @@
+## <small>0.9.36 (2026-06-03)</small>
+
+* test: externalize sharp in vitest so the native module loads in CI ([5d439a9f5bb4b47d8ab1c0500ff4b90b4038a097](https://github.com/framerslab/agentos/commit/5d439a9f5bb4b47d8ab1c0500ff4b90b4038a097))
+* test: skip sharp-dependent segmentation tests in CI (native binary unbuilt there) ([a7d09cc438009d489fbfe87545d58cdbeeae52d8](https://github.com/framerslab/agentos/commit/a7d09cc438009d489fbfe87545d58cdbeeae52d8))
+* test(segmentation): assert error type in modelId validation test ([1631ab633b89ed4d428e4b21c9b3315e09a47f81](https://github.com/framerslab/agentos/commit/1631ab633b89ed4d428e4b21c9b3315e09a47f81))
+* fix(agent): close memory store on souledAgent teardown ([a40a159103b7e993fd817b1e918d04d5f20a36b7](https://github.com/framerslab/agentos/commit/a40a159103b7e993fd817b1e918d04d5f20a36b7))
+* fix(memory): drain wiki compile in chronological batches; advance watermark to processed created_at ([0aa7ddfa442fd31a6c4e39b089b6e537361089eb](https://github.com/framerslab/agentos/commit/0aa7ddfa442fd31a6c4e39b089b6e537361089eb))
+* fix(segmentation): require exactly owner/name model ids before model URL lookup ([2aaaad79fe7f6b5739a5c3170a9934e2e75790d8](https://github.com/framerslab/agentos/commit/2aaaad79fe7f6b5739a5c3170a9934e2e75790d8))
+
 ## <small>0.9.35 (2026-06-03)</small>
 
 * fix(memory): correct attachMemoryWiki test import path ([b902134355864b732c981dea41abd66808eeba71](https://github.com/framerslab/agentos/commit/b902134355864b732c981dea41abd66808eeba71))
