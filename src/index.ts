@@ -144,6 +144,36 @@ export {
 } from './cognition/rag/unified/policy.js';
 // Cognitive Memory System
 export * from './cognition/memory';
+// Memory Wiki — markdown-first long-term memory for soul-file agents
+export {
+  WikiMemoryStore,
+  WikiCompiler,
+  ensureMemoryDir,
+  parsePage,
+  serializePage,
+  renderCatalog,
+  extractWikiLinks,
+  WIKI_PAGE_TYPES,
+  isWikiPageType,
+} from './cognition/substrate/memory/wiki/index.js';
+export type {
+  WikiPage,
+  WikiPageType,
+  MetaIndex,
+  IndexResult as WikiIndexResult,
+  CompileResult as WikiCompileResult,
+  MemoryIndexPort,
+  WikiMemoryStoreOptions,
+  WikiCompilerOptions,
+  WikiCompilerStorePort,
+} from './cognition/substrate/memory/wiki/index.js';
+export { attachMemoryWiki } from './cognition/memory/io/attachMemoryWiki.js';
+export type {
+  AttachMemoryWikiOptions,
+  AttachMemoryWikiResult,
+  WikiAttachableMemory,
+} from './cognition/memory/io/attachMemoryWiki.js';
+export { ReadMemoryPageTool } from './cognition/memory/io/tools/ReadMemoryPageTool.js';
 // Query Router (classification, retrieval dispatch, grounded answer generation)
 export {
   QueryClassifier,
