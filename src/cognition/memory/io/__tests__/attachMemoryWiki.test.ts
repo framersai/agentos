@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { attachMemoryWiki } from '../attachMemoryWiki.js';
-import { ensureMemoryDir } from '../../substrate/memory/wiki/index.js';
+import { ensureMemoryDir } from '../../../substrate/memory/wiki/index.js';
 
 let dir: string;
 let memoryDir: string;
