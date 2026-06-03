@@ -820,6 +820,41 @@ export class Memory {
     );
   }
 
+  /**
+   * List traces created strictly after `sinceMs` (Unix-ms), newest first.
+   *
+   * Unlike {@link recall}, this performs no FTS match — it is a time-window scan,
+   * used by the wiki compiler to fold recent activity into pages.
+   *
+   * @param sinceMs - Exclusive lower bound on `created_at` (Unix ms). Use 0 for "all".
+   * @param options - Optional scope filter and result cap (default 200).
+   */
+  async recentTraces(
+    sinceMs: number,
+    options?: { limit?: number; scope?: string },
+  ): Promise<MemoryTrace[]> {
+    await this._initPromise;
+    const limit = options?.limit ?? 200;
+    const conditions = ['brain_id = ?', 'deleted = 0', 'created_at > ?'];
+    const params: unknown[] = [this._brain.brainId, sinceMs];
+    if (options?.scope) {
+      conditions.push('scope = ?');
+      params.push(options.scope);
+    }
+    params.push(limit);
+
+    const rows = await this._brain.all<TraceRow>(
+      `SELECT id, type, scope, content, embedding, strength, created_at,
+              last_accessed, retrieval_count, tags, emotions, metadata, deleted
+       FROM memory_traces
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      params,
+    );
+    return rows.map((row) => this._buildTrace(row));
+  }
+
   // =========================================================================
   // Document ingestion
   // =========================================================================
