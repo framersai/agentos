@@ -7,7 +7,7 @@
  */
 import { ApiKeyPool } from '../../../core/providers/ApiKeyPool.js';
 import { getImageProviderOptions } from '../../media/images/IImageProvider.js';
-import { SegmentationProviderError } from '../errors.js';
+import { SegmentationProviderError, SegmentationModeNotSupportedError } from '../errors.js';
 import { computeMaskBbox } from '../maskGeometry.js';
 import type {
   ISegmentationProvider,
@@ -43,6 +43,7 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
   public isInitialized = false;
   public defaultModelId?: string;
   private keyPool!: ApiKeyPool;
+  private readonly versionCache = new Map<string, string>();
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : '';
@@ -58,12 +59,18 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
   }
 
   supportedModes(): ReadonlyArray<SegmentationMode> {
-    return ['text', 'points', 'box', 'automatic'];
+    // Hosted Replicate v1: GroundedSAM (text) + SAM2 automatic ("segment
+    // everything"). Coordinate prompts (points/box) have no clean hosted
+    // single-image model and await a coordinate-capable provider.
+    return ['text', 'automatic'];
   }
 
   async segment(request: SegmentationRequest): Promise<SegmentationResult> {
     if (!this.isInitialized) {
       throw new SegmentationProviderError('Replicate segmentation provider is not initialized.', 'provider_failed');
+    }
+    if (!this.supportedModes().includes(request.mode)) {
+      throw new SegmentationModeNotSupportedError(this.providerId, request.mode);
     }
     const startedAt = Date.now();
     const providerOptions = getImageProviderOptions<ReplicateSegmentationOptions>(this.providerId, request.providerOptions);
@@ -100,7 +107,12 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
     let masks = await this.decodeMasks(prediction.output);
     if (typeof request.minScore === 'number') masks = masks.filter((m) => m.score >= request.minScore!);
     if (typeof request.maxMasks === 'number') masks = masks.slice(0, request.maxMasks);
-    masks = masks.map((m, i) => ({ ...m, index: i }));
+    masks = masks.map((m, i) => ({
+      ...m,
+      index: i,
+      // GroundedSAM output carries no per-mask label; fall back to the phrase.
+      label: m.label ?? (request.mode === 'text' ? request.prompt : undefined),
+    }));
 
     return {
       masks,
@@ -123,23 +135,13 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
   ): Record<string, unknown> {
     const imageDataUrl = `data:image/png;base64,${request.image.toString('base64')}`;
     const input: Record<string, unknown> = { image: imageDataUrl, ...(providerOptions?.input ?? {}) };
-    switch (request.mode) {
-      case 'text':
-        input.text_prompt = request.prompt;
-        break;
-      case 'box': {
-        const b = request.box!;
-        input.box = [b.x, b.y, b.x + b.width, b.y + b.height];
-        break;
-      }
-      case 'points':
-        input.points = (request.points ?? []).map((p) => [p.x, p.y]);
-        input.point_labels = (request.points ?? []).map((p) => (p.label === 'background' ? 0 : 1));
-        break;
-      case 'automatic':
-        input.automatic = true;
-        break;
+    if (request.mode === 'text') {
+      // GroundedSAM uses `mask_prompt` for the open-vocabulary phrase.
+      input.mask_prompt = request.prompt;
     }
+    // `automatic` mode: the SAM2 model segments everything from `image` alone.
+    // Tuning params (points_per_side, pred_iou_thresh, stability_score_thresh,
+    // use_m2m) flow through providerOptions.replicate.input.
     return input;
   }
 
@@ -153,25 +155,13 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
     const pollIntervalMs = providerOptions?.pollIntervalMs ?? 1000;
     const timeoutMs = providerOptions?.timeoutMs ?? 120_000;
 
-    let res: Response;
-    if (modelId.includes(':')) {
-      res = await fetch(`${REPLICATE_BASE}/predictions`, {
-        method: 'POST', headers: this.headers(), body: JSON.stringify({ version: modelId, input }),
-      });
-    } else {
-      const slash = modelId.indexOf('/');
-      if (slash < 1) {
-        throw new SegmentationProviderError(
-          `Invalid modelId "${modelId}": expected "owner/model" or "owner/model:version".`,
-          'invalid_request',
-        );
-      }
-      const owner = modelId.substring(0, slash);
-      const name = modelId.substring(slash + 1);
-      res = await fetch(`${REPLICATE_BASE}/models/${owner}/${name}/predictions`, {
-        method: 'POST', headers: this.headers(), body: JSON.stringify({ input }),
-      });
-    }
+    // Create the prediction through the version endpoint, which serves both
+    // official and community models. The version-less /models/.../predictions
+    // endpoint only serves official models and 404s for community ones.
+    const version = await this.resolveVersion(modelId);
+    const res = await fetch(`${REPLICATE_BASE}/predictions`, {
+      method: 'POST', headers: this.headers(), body: JSON.stringify({ version, input }),
+    });
     if (!res.ok) {
       throw new SegmentationProviderError(`Replicate returned ${res.status}: ${await res.text()}`, 'provider_failed');
     }
@@ -196,12 +186,47 @@ export class ReplicateSegmentationProvider implements ISegmentationProvider {
     return prediction;
   }
 
+  /**
+   * Resolve a model id to a concrete version hash. An explicit
+   * `owner/name:version` pin is used directly; a bare `owner/name` is looked up
+   * via the model API for its latest version (cached per provider instance).
+   */
+  private async resolveVersion(modelId: string): Promise<string> {
+    const colon = modelId.indexOf(':');
+    if (colon >= 0) return modelId.slice(colon + 1);
+
+    const cached = this.versionCache.get(modelId);
+    if (cached) return cached;
+
+    const slash = modelId.indexOf('/');
+    if (slash < 1) {
+      throw new SegmentationProviderError(
+        `Invalid modelId "${modelId}": expected "owner/model" or "owner/model:version".`,
+        'invalid_request',
+      );
+    }
+    const res = await fetch(`${REPLICATE_BASE}/models/${modelId}`, { headers: this.headers() });
+    if (!res.ok) {
+      throw new SegmentationProviderError(`Failed to resolve model "${modelId}": ${res.status}`, 'provider_failed');
+    }
+    const data = (await res.json()) as { latest_version?: { id?: string } };
+    const version = data.latest_version?.id;
+    if (!version) {
+      throw new SegmentationProviderError(`Model "${modelId}" has no published version.`, 'provider_failed');
+    }
+    this.versionCache.set(modelId, version);
+    return version;
+  }
+
   private extractMaskRefs(output: unknown): MaskRef[] {
     if (Array.isArray(output)) return output as MaskRef[];
     if (output && typeof output === 'object') {
       const o = output as Record<string, unknown>;
+      // meta/sam-2 automatic output: { combined_mask, individual_masks: [...] }
+      if (Array.isArray(o.individual_masks)) return o.individual_masks as MaskRef[];
       if (Array.isArray(o.masks)) return o.masks as MaskRef[];
       if (typeof o.mask === 'string') return [o.mask];
+      if (typeof o.combined_mask === 'string') return [o.combined_mask];
     }
     if (typeof output === 'string') return [output];
     return [];

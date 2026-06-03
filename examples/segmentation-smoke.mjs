@@ -21,12 +21,9 @@ console.log('1) text prompt: "main subject"');
 const byText = await segment({ image, prompt: 'main subject' });
 console.log(`   -> ${byText.masks.length} mask(s), ${byText.width}x${byText.height}`);
 
-console.log('2) box prompt (top-left quadrant)');
-const byBox = await segment({
-  image,
-  box: { x: 0, y: 0, width: Math.floor(byText.width / 2), height: Math.floor(byText.height / 2) },
-});
-console.log(`   -> ${byBox.masks.length} mask(s)`);
+console.log('2) automatic (segment everything)');
+const byAuto = await segment({ image, automatic: true, maxMasks: 10 });
+console.log(`   -> ${byAuto.masks.length} mask(s)`);
 
 if (byText.masks[0]) {
   const editMask = await maskToEditMask(byText.masks[0]);

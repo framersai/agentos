@@ -28,10 +28,10 @@ text prompts route to a GroundedSAM chain.
 
 | Capability | Description |
 |------------|-------------|
-| **Text prompt** | "the chimney" → masks for matching regions (GroundedSAM) |
-| **Point prompt** | Foreground/background clicks → a mask for the indicated object |
-| **Box prompt** | A bounding box → the tight mask inside it |
-| **Automatic** | "Segment everything" → masks for every salient region |
+| **Text prompt** | "the chimney" → masks for matching regions (hosted GroundedSAM) |
+| **Automatic** | "Segment everything" → masks for every salient region (hosted SAM2) |
+| **Point prompt** | Foreground/background clicks (needs a coordinate-capable provider) |
+| **Box prompt** | A bounding box → the tight mask inside it (needs a coordinate-capable provider) |
 | **Mask convention** | White = object, black = background (drops into `editImage`) |
 
 ---
@@ -79,18 +79,21 @@ Exactly one prompt mode must be set. Setting zero or more than one throws
 
 ## Prompt Modes
 
+The hosted Replicate provider supports **text** (GroundedSAM) and **automatic**
+(SAM2 "segment everything"). **Point** and **box** prompts are part of the API
+surface for a coordinate-capable provider (such as a future local SAM2 provider);
+the Replicate provider returns `SegmentationModeNotSupportedError` for them.
+
 ```typescript
-// Text (open vocabulary)
+// Text (open vocabulary) — GroundedSAM
 await segment({ image, prompt: 'all the windows' });
 
-// Point — foreground click at (320, 210)
-await segment({ image, points: [{ x: 320, y: 210, label: 'foreground' }] });
-
-// Box
-await segment({ image, box: { x: 40, y: 40, width: 200, height: 160 } });
-
-// Automatic — every salient region, capped at 10
+// Automatic — every salient region, capped at 10 — SAM2
 await segment({ image, automatic: true, maxMasks: 10 });
+
+// Point / box — require a coordinate-capable provider (not hosted Replicate)
+await segment({ image, points: [{ x: 320, y: 210, label: 'foreground' }] });
+await segment({ image, box: { x: 40, y: 40, width: 200, height: 160 } });
 ```
 
 ---
@@ -131,14 +134,15 @@ The Replicate provider reads `REPLICATE_API_TOKEN` from the environment.
 export REPLICATE_API_TOKEN=r8_...
 ```
 
-Override the model per call or via provider options:
+Defaults: text prompts use `schananas/grounded_sam`; automatic uses `meta/sam-2`.
+Override per call or via provider options:
 
 ```typescript
 await segment({
   image,
-  box: { x: 0, y: 0, width: 256, height: 256 },
+  automatic: true,
   model: 'meta/sam-2',
-  providerOptions: { replicate: { pollIntervalMs: 1000, timeoutMs: 120000 } },
+  providerOptions: { replicate: { pollIntervalMs: 1000, timeoutMs: 120000, input: { points_per_side: 32 } } },
 });
 ```
 
@@ -193,11 +197,12 @@ for (const m of masks) {
 
 ## Scope
 
-Shipped: hosted Replicate provider (SAM2 + GroundedSAM), the four prompt modes,
-and the two consumer bridges.
+Shipped: hosted Replicate provider — **text** (GroundedSAM) and **automatic**
+(SAM2) — plus the `maskToEditMask` and `cropRegion` bridges.
 
-Not in this surface: a local/offline SAM provider, in-browser WebGPU
-segmentation, and video / cross-frame tracking.
+Not in this surface: coordinate (point/box) prompting, which needs a
+coordinate-capable provider; a local/offline SAM provider; in-browser WebGPU
+segmentation; and video / cross-frame tracking.
 
 ---
 

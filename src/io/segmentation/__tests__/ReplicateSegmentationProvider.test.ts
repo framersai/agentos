@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ReplicateSegmentationProvider } from '../providers/ReplicateSegmentationProvider.js';
-import type { SegmentationRequest } from '../types.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -24,6 +23,11 @@ function ok(body: unknown) {
   return { ok: true, status: 200, json: async () => body, text: async () => '' };
 }
 
+/** Mock for the GET /models/{owner}/{name} version-resolution lookup. */
+function modelVersion(id: string) {
+  return ok({ latest_version: { id } });
+}
+
 describe('ReplicateSegmentationProvider', () => {
   let provider: ReplicateSegmentationProvider;
   beforeEach(async () => {
@@ -32,67 +36,74 @@ describe('ReplicateSegmentationProvider', () => {
     await provider.initialize({ apiKey: 'test-key' });
   });
 
-  it('reports all four supported modes', () => {
-    expect(provider.supportedModes()).toEqual(['text', 'points', 'box', 'automatic']);
+  it('supports text and automatic modes', () => {
+    expect(provider.supportedModes()).toEqual(['text', 'automatic']);
   });
 
-  it('box mode: hits modern endpoint and maps box to [x1,y1,x2,y2]', async () => {
+  it('automatic mode: resolves version, posts to /predictions, decodes individual_masks', async () => {
     const url = await maskDataUrl();
-    mockFetch.mockResolvedValueOnce(ok({ id: 'p1', status: 'succeeded', output: [url] }));
+    mockFetch
+      .mockResolvedValueOnce(modelVersion('ver-sam2'))
+      .mockResolvedValueOnce(ok({ id: 'p1', status: 'succeeded', output: { combined_mask: url, individual_masks: [url, url] } }));
 
-    const req: SegmentationRequest = {
-      modelId: 'meta/sam-2',
-      image: await sourceImage(),
-      mode: 'box',
-      box: { x: 2, y: 1, width: 4, height: 3 },
-    };
-    const result = await provider.segment(req);
+    const result = await provider.segment({ modelId: 'meta/sam-2', image: await sourceImage(), mode: 'automatic' });
 
-    const [calledUrl, opts] = mockFetch.mock.calls[0];
-    expect(calledUrl).toBe('https://api.replicate.com/v1/models/meta/sam-2/predictions');
+    expect(mockFetch.mock.calls[0][0]).toBe('https://api.replicate.com/v1/models/meta/sam-2');
+    const [predUrl, opts] = mockFetch.mock.calls[1];
+    expect(predUrl).toBe('https://api.replicate.com/v1/predictions');
     expect(opts.headers.Authorization).toBe('Token test-key');
     const body = JSON.parse(opts.body);
-    expect(body.input.box).toEqual([2, 1, 6, 4]);
+    expect(body.version).toBe('ver-sam2');
     expect(typeof body.input.image).toBe('string');
+    expect(body.input.mask_prompt).toBeUndefined();
 
     expect(result.width).toBe(12);
     expect(result.height).toBe(10);
-    expect(result.promptMode).toBe('box');
-    expect(result.masks).toHaveLength(1);
+    expect(result.promptMode).toBe('automatic');
+    expect(result.masks).toHaveLength(2);
     expect(result.masks[0].bbox).toEqual({ x: 2, y: 1, width: 4, height: 3 });
-    expect(result.masks[0].score).toBe(1);
-    expect(result.masks[0].index).toBe(0);
+    expect(result.masks[1].index).toBe(1);
   });
 
-  it('text mode: sends text_prompt and surfaces label/score from object output', async () => {
+  it('text mode: sends mask_prompt and labels masks with the phrase', async () => {
     const url = await maskDataUrl();
-    mockFetch.mockResolvedValueOnce(ok({
-      id: 'p2', status: 'succeeded',
-      output: { masks: [{ mask: url, score: 0.91, label: 'chair' }] },
-    }));
+    mockFetch
+      .mockResolvedValueOnce(modelVersion('ver-gsam'))
+      .mockResolvedValueOnce(ok({ id: 'p2', status: 'succeeded', output: [url] }));
 
     const result = await provider.segment({
-      modelId: 'grounded/sam', image: await sourceImage(), mode: 'text', prompt: 'chair',
+      modelId: 'schananas/grounded_sam', image: await sourceImage(), mode: 'text', prompt: 'chair',
     });
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.input.text_prompt).toBe('chair');
+    const body = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(body.version).toBe('ver-gsam');
+    expect(body.input.mask_prompt).toBe('chair');
+    expect(body.input.text_prompt).toBeUndefined();
+    expect(result.masks).toHaveLength(1);
     expect(result.masks[0].label).toBe('chair');
-    expect(result.masks[0].score).toBeCloseTo(0.91);
+    expect(result.masks[0].score).toBe(1);
   });
 
-  it('points mode: maps coordinates and labels', async () => {
+  it('uses an explicit version pin directly without a model lookup', async () => {
     const url = await maskDataUrl();
-    mockFetch.mockResolvedValueOnce(ok({ id: 'p3', status: 'succeeded', output: [url] }));
+    mockFetch.mockResolvedValueOnce(ok({ id: 'p', status: 'succeeded', output: [url] }));
 
-    await provider.segment({
-      modelId: 'meta/sam-2', image: await sourceImage(), mode: 'points',
-      points: [{ x: 5, y: 4, label: 'foreground' }, { x: 1, y: 1, label: 'background' }],
-    });
+    await provider.segment({ modelId: 'owner/model:abc123', image: await sourceImage(), mode: 'automatic' });
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body.input.points).toEqual([[5, 4], [1, 1]]);
-    expect(body.input.point_labels).toEqual([1, 0]);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [predUrl, opts] = mockFetch.mock.calls[0];
+    expect(predUrl).toBe('https://api.replicate.com/v1/predictions');
+    expect(JSON.parse(opts.body).version).toBe('abc123');
+  });
+
+  it('rejects coordinate modes (box/points) as unsupported before any fetch', async () => {
+    await expect(
+      provider.segment({
+        modelId: 'meta/sam-2', image: await sourceImage(), mode: 'box',
+        box: { x: 0, y: 0, width: 4, height: 4 },
+      }),
+    ).rejects.toMatchObject({ name: 'SegmentationModeNotSupportedError', mode: 'box' });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -107,6 +118,7 @@ describe('ReplicateSegmentationProvider — polling and errors', () => {
   it('polls urls.get until the prediction succeeds', async () => {
     const url = await maskDataUrl();
     mockFetch
+      .mockResolvedValueOnce(modelVersion('v'))
       .mockResolvedValueOnce(ok({ id: 'p', status: 'processing', urls: { get: 'https://api.replicate.com/v1/predictions/p' } }))
       .mockResolvedValueOnce(ok({ id: 'p', status: 'succeeded', output: [url] }));
 
@@ -114,41 +126,29 @@ describe('ReplicateSegmentationProvider — polling and errors', () => {
       modelId: 'meta/sam-2', image: await sourceImage(), mode: 'automatic',
       providerOptions: { replicate: { pollIntervalMs: 1 } },
     });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
     expect(result.masks).toHaveLength(1);
   });
 
   it('throws SegmentationProviderError with code provider_failed on failed status', async () => {
-    mockFetch.mockResolvedValueOnce(ok({ id: 'p', status: 'failed', error: 'bad input' }));
+    mockFetch
+      .mockResolvedValueOnce(modelVersion('v'))
+      .mockResolvedValueOnce(ok({ id: 'p', status: 'failed', error: 'bad input' }));
     await expect(
       provider.segment({ modelId: 'meta/sam-2', image: await sourceImage(), mode: 'automatic' }),
     ).rejects.toMatchObject({ name: 'SegmentationProviderError', code: 'provider_failed' });
   });
 
-  it('uses the legacy /predictions endpoint for inline version hashes', async () => {
-    const url = await maskDataUrl();
-    mockFetch.mockResolvedValueOnce(ok({ id: 'p', status: 'succeeded', output: [url] }));
-    await provider.segment({
-      modelId: 'owner/model:abc123', image: await sourceImage(), mode: 'automatic',
-    });
-    const [calledUrl, opts] = mockFetch.mock.calls[0];
-    expect(calledUrl).toBe('https://api.replicate.com/v1/predictions');
-    expect(JSON.parse(opts.body).version).toBe('owner/model:abc123');
-  });
-
   it('applies minScore and maxMasks filtering', async () => {
     const url = await maskDataUrl();
-    mockFetch.mockResolvedValueOnce(ok({
-      id: 'p', status: 'succeeded',
-      output: { masks: [
-        { mask: url, score: 0.9 },
-        { mask: url, score: 0.2 },
-        { mask: url, score: 0.95 },
-      ] },
-    }));
+    mockFetch
+      .mockResolvedValueOnce(modelVersion('v'))
+      .mockResolvedValueOnce(ok({
+        id: 'p', status: 'succeeded',
+        output: { masks: [{ mask: url, score: 0.9 }, { mask: url, score: 0.2 }, { mask: url, score: 0.95 }] },
+      }));
     const result = await provider.segment({
-      modelId: 'meta/sam-2', image: await sourceImage(), mode: 'automatic',
-      minScore: 0.5, maxMasks: 1,
+      modelId: 'meta/sam-2', image: await sourceImage(), mode: 'automatic', minScore: 0.5, maxMasks: 1,
     });
     expect(result.masks).toHaveLength(1);
     expect(result.masks[0].score).toBeCloseTo(0.9);
