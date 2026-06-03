@@ -64,6 +64,45 @@ describe('Memory.compileWiki', () => {
     expect(indexed).toBe(1);
   });
 
+  it('advances the watermark to the newest processed trace and drains on re-compile', async () => {
+    const mem = await makeMemory(true);
+    const t = await mem.remember('Johnny likes terse commits.', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
+
+    let watermark: string | null = null;
+    let compileCalls = 0;
+    mem.attachWiki({
+      store: {
+        index: async () => ({ indexed: [], skipped: [], removed: [] }),
+        readMetaWatermark: async () => watermark,
+        writeMetaWatermark: async (iso: string) => {
+          watermark = iso;
+        },
+      } as any,
+      compiler: {
+        compile: async (input: any) => {
+          compileCalls++;
+          return {
+            pagesWritten: input.traces.length ? ['entities/johnny'] : [],
+            tracesConsumed: input.traces.length,
+            conflicts: [],
+          };
+        },
+      } as any,
+    });
+
+    const first = await mem.compileWiki({ reason: 'explicit' });
+    expect(first.tracesConsumed).toBe(1);
+    // Watermark is the trace's own created_at, NOT wall-clock now.
+    expect(watermark).toBe(new Date(t.createdAt).toISOString());
+
+    const callsAfterFirst = compileCalls;
+    const second = await mem.compileWiki({ reason: 'explicit' });
+    expect(second.tracesConsumed).toBe(0);
+    expect(second.pagesWritten).toEqual([]);
+    // Window already drained → compiler not invoked again.
+    expect(compileCalls).toBe(callsAfterFirst);
+  });
+
   it('no-ops when no wiki is attached', async () => {
     const mem = await makeMemory(false);
     const res = await mem.compileWiki({ reason: 'explicit' });

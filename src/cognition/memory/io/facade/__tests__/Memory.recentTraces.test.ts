@@ -35,17 +35,30 @@ afterEach(async () => {
 });
 
 describe('Memory.recentTraces', () => {
-  it('returns traces created after the watermark, newest first', async () => {
+  it('returns only traces created after the watermark', async () => {
     const mem = await makeMemory();
-    await mem.remember('older fact', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
-    await new Promise((r) => setTimeout(r, 15));
-    const watermark = Date.now();
+    // Drive the watermark from the older trace's OWN recorded created_at rather
+    // than a wall-clock Date.now() guess: `> older.createdAt` excludes it
+    // deterministically, and the newer trace (written after a delay) has a
+    // strictly greater created_at.
+    const older = await mem.remember('older fact', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
     await new Promise((r) => setTimeout(r, 15));
     await mem.remember('newer fact', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
 
-    const recent = await mem.recentTraces(watermark, { limit: 10 });
+    const recent = await mem.recentTraces(older.createdAt, { limit: 10 });
     const contents = recent.map((t) => t.content);
     expect(contents).toContain('newer fact');
     expect(contents).not.toContain('older fact');
+  });
+
+  it('returns oldest-first when order is "asc"', async () => {
+    const mem = await makeMemory();
+    await mem.remember('first fact', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
+    await new Promise((r) => setTimeout(r, 15));
+    await mem.remember('second fact', { type: 'episodic', scope: 'persona', scopeId: 'a1' });
+
+    const asc = await mem.recentTraces(0, { order: 'asc', limit: 10 });
+    const contents = asc.map((t) => t.content);
+    expect(contents.indexOf('first fact')).toBeLessThan(contents.indexOf('second fact'));
   });
 });
