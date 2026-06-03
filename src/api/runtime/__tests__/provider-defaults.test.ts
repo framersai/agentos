@@ -19,7 +19,7 @@ describe('PROVIDER_DEFAULTS', () => {
   });
 
   it('includes CLI providers with text defaults', () => {
-    expect(PROVIDER_DEFAULTS['claude-code-cli']?.text).toBe('claude-sonnet-4-20250514');
+    expect(PROVIDER_DEFAULTS['claude-code-cli']?.text).toBe('claude-sonnet-4-5-20250929');
     expect(PROVIDER_DEFAULTS['gemini-cli']?.text).toBe('gemini-2.5-flash');
   });
 
@@ -145,7 +145,7 @@ describe('resolveModelOption', () => {
 
   it('resolves provider-only for Claude Code CLI', () => {
     const result = resolveModelOption({ provider: 'claude-code-cli' }, 'text');
-    expect(result).toEqual({ providerId: 'claude-code-cli', modelId: 'claude-sonnet-4-20250514' });
+    expect(result).toEqual({ providerId: 'claude-code-cli', modelId: 'claude-sonnet-4-5-20250929' });
   });
 
   it('throws for unknown provider', () => {
@@ -201,9 +201,9 @@ describe('resolveModelOption', () => {
   });
 
   it('resolves CLI providers without requiring API keys', () => {
-    expect(resolveProvider('claude-code-cli', 'claude-sonnet-4-20250514')).toEqual({
+    expect(resolveProvider('claude-code-cli', 'claude-sonnet-4-5-20250929')).toEqual({
       providerId: 'claude-code-cli',
-      modelId: 'claude-sonnet-4-20250514',
+      modelId: 'claude-sonnet-4-5-20250929',
     });
     expect(resolveProvider('gemini-cli', 'gemini-2.5-flash')).toEqual({
       providerId: 'gemini-cli',

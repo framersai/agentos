@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { analyzeVideo } from '../analyzeVideo.js';
 
-vi.mock('../../../vision/index.js', () => {
+vi.mock('../../../io/vision/index.js', () => {
   const holder = {
     createVisionPipeline: vi.fn().mockResolvedValue({ process: vi.fn() }),
   };
@@ -12,7 +12,7 @@ vi.mock('../../../vision/index.js', () => {
   };
 });
 
-vi.mock('../../../media/video/VideoAnalyzer.js', () => {
+vi.mock('../../../io/media/video/VideoAnalyzer.js', () => {
   const holder = {
     constructorArgs: [] as unknown[],
     analyze: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock('../../../media/video/VideoAnalyzer.js', () => {
   };
 });
 
-vi.mock('../../../hearing/providers/OpenAIWhisperSpeechToTextProvider.js', () => {
+vi.mock('../../../io/hearing/providers/OpenAIWhisperSpeechToTextProvider.js', () => {
   const holder = {
     constructorArgs: [] as unknown[],
   };
@@ -69,7 +69,7 @@ vi.mock('../../observability.js', () => ({
   toTurnMetricUsage: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock('../../../evaluation/observability/otel.js', () => ({
+vi.mock('../../../safety/evaluation/observability/otel.js', () => ({
   withAgentOSSpan: vi.fn((_name: string, fn: (span: null) => unknown) => fn(null)),
   recordAgentOSTurnMetrics: vi.fn(),
 }));

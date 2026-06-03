@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateVideo } from '../generateVideo.js';
 
-vi.mock('../../../media/video/index.js', () => {
+vi.mock('../../../io/media/video/index.js', () => {
   const providers = new Map<string, any>();
 
   const defaultModelFor = (providerId: string): string => {
@@ -83,7 +83,7 @@ vi.mock('../../observability.js', () => ({
   toTurnMetricUsage: vi.fn().mockReturnValue(undefined),
 }));
 
-vi.mock('../../../evaluation/observability/otel.js', () => ({
+vi.mock('../../../safety/evaluation/observability/otel.js', () => ({
   withAgentOSSpan: vi.fn((_name: string, fn: (span: null) => unknown) => fn(null)),
   recordAgentOSTurnMetrics: vi.fn(),
 }));

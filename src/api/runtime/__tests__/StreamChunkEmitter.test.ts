@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the otel module before importing StreamChunkEmitter
-vi.mock('../../../evaluation/observability/otel', () => ({
+vi.mock('../../../safety/evaluation/observability/otel', () => ({
   shouldIncludeTraceInAgentOSResponses: vi.fn(() => false),
   getActiveTraceMetadata: vi.fn(() => null),
 }));
