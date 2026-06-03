@@ -734,5 +734,13 @@
       "optional": true
     }
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "sharp",
+      "bcrypt",
+      "tesseract.js"
+    ]
+  },
   "sideEffects": false
 }
