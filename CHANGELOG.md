@@ -1,3 +1,10 @@
+## <small>0.9.38 (2026-06-04)</small>
+
+* test: skip sibling-sourced corpus and catalog assertions in standalone CI ([b216a67a4e9d5f2c8fd8f20895f50506c519e025](https://github.com/framerslab/agentos/commit/b216a67a4e9d5f2c8fd8f20895f50506c519e025))
+* fix(memory): map Postgres INTEGER columns to BIGINT and drop the FTS _tsv shadow column on cross-backend export ([93ded0a36733b866b9858c2f3b201cc02c23a96a](https://github.com/framerslab/agentos/commit/93ded0a36733b866b9858c2f3b201cc02c23a96a))
+* Merge remote-tracking branch 'origin/master' ([bf4da023b70c7d8369da6da1bb17c507b4519525](https://github.com/framerslab/agentos/commit/bf4da023b70c7d8369da6da1bb17c507b4519525))
+* docs: linkify symbols to GitHub source references ([e7ac937f7133eba0ddeeb873eea607f97739790d](https://github.com/framerslab/agentos/commit/e7ac937f7133eba0ddeeb873eea607f97739790d))
+
 ## <small>0.9.37 (2026-06-04)</small>
 
 * fix(agent): stop double-counting session/agent usage when the ledger is enabled; repair knowledge-corpus paths + generate it for tests; fix voice-pipeline mock constructor ([6622d455f9fd74a4f26ef53fead7ee19a3658ee3](https://github.com/framerslab/agentos/commit/6622d455f9fd74a4f26ef53fead7ee19a3658ee3))
