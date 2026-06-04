@@ -11,8 +11,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { KeywordFallback } from '../KeywordFallback.js';
+
+/** Directory of this test file, resolved the ESM way (CommonJS __dirname is undefined under ESM). */
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Corpus loading
@@ -27,9 +31,9 @@ import { KeywordFallback } from '../KeywordFallback.js';
  * `existsSync` probe and the `describe.skip` guard below.
  */
 const CORPUS_CANDIDATES = [
-  resolve(__dirname, '../../../../../knowledge/platform-corpus.json'),
-  resolve(__dirname, '../../../../knowledge/platform-corpus.json'),
-  resolve(__dirname, '../../../knowledge/platform-corpus.json'),
+  resolve(MODULE_DIR, '../../../../../knowledge/platform-corpus.json'),
+  resolve(MODULE_DIR, '../../../../knowledge/platform-corpus.json'),
+  resolve(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
 ];
 
 /** Resolved corpus path, or null when the generated corpus is unavailable. */
