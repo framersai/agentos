@@ -31,7 +31,7 @@ This page covers two layers:
 
 `@framers/sql-storage-adapter` is the storage layer used by every AgentOS persistence path (cognitive memory, agency memory, SQL storage archive). It exposes one `createDatabase()` factory that returns a uniform [`StorageAdapter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/index.ts) interface backed by `better-sqlite3`, `sql.js`, IndexedDB, Capacitor SQLite, Postgres, or Supabase. Application code is identical across all six. The runtime auto-detects the right backend per environment, or picks it explicitly via the `type` option.
 
-This page covers the public API: how to pick a backend, the [`StorageAdapter`](https://github.com/framersai/sql-storage-adapter/blob/master/src/core/contracts/index.ts) contract, cloud backups, cross-backend migrations, and how AgentOS memory subsystems consume it.
+This page covers the public API: how to pick a backend, the [`StorageAdapter`](https://github.com/framerslab/sql-storage-adapter/blob/master/src/core/contracts/index.ts) contract, cloud backups, cross-backend migrations, and how AgentOS memory subsystems consume it.
 
 ## What you get
 

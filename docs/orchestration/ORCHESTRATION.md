@@ -192,7 +192,7 @@ gmiNode(
 | Mode | Behavior |
 |------|----------|
 | `single_turn` | One LLM call, no internal tool loop. Default in `workflow()` for cost-bounded execution. |
-| `react_bounded` | ReAct loop up to `maxInternalIterations`. Default in [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts). Agent can call tools, observe results, and reason across multiple turns. |
+| `react_bounded` | ReAct loop up to `maxInternalIterations`. Default in [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts). Agent can call tools, observe results, and reason across multiple turns. |
 | `planner_controlled` | PlanningEngine drives the loop. Default in `mission()`. The planner decides when to stop based on goal satisfaction. |
 
 ---

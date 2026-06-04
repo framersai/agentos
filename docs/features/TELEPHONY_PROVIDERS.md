@@ -226,8 +226,8 @@ manager.on((event) => {
 });
 ```
 
-The [`TelephonyStreamTransport`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) re-emits DTMF events directly from the media
-stream (before they reach the [`CallManager`](https://github.com/framersai/agentos/blob/master/src/io/channels/telephony/CallManager.ts)):
+The [`TelephonyStreamTransport`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/TelephonyStreamTransport.ts) re-emits DTMF events directly from the media
+stream (before they reach the [`CallManager`](https://github.com/framerslab/agentos/blob/master/src/io/channels/telephony/CallManager.ts)):
 
 ```typescript
 transport.on('dtmf', ({ digit, durationMs }) => {

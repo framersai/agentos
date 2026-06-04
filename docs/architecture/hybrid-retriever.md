@@ -14,7 +14,7 @@ Parallel to [`SessionRetriever`](https://github.com/framerslab/agentos/blob/mast
 
 [`HybridSearcher`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/search/HybridSearcher.ts) is a generic document-RAG hybrid retriever: it takes a vector store + a BM25 index + an embedding manager and returns document hits. It knows nothing about memory traces, cognitive scoring, or decay.
 
-[`HybridRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/hybrid/HybridRetriever.ts) is a memory-domain retriever: it delegates dense search to `MemoryStore.query` (inheriting cognitive scoring), owns a per-instance [`BM25Index`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/search/BM25Index.ts) for sparse, and returns [`ScoredMemoryTrace`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/types.ts) in a [`CognitiveRetrievalResult`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/types.ts) shape. It is NOT built on top of [`HybridSearcher`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/search/HybridSearcher.ts). They are siblings at different abstraction levels.
+[`HybridRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/hybrid/HybridRetriever.ts) is a memory-domain retriever: it delegates dense search to `MemoryStore.query` (inheriting cognitive scoring), owns a per-instance [`BM25Index`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/search/BM25Index.ts) for sparse, and returns [`ScoredMemoryTrace`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/types.ts) in a [`CognitiveRetrievalResult`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/core/types.ts) shape. It is NOT built on top of [`HybridSearcher`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/search/HybridSearcher.ts). They are siblings at different abstraction levels.
 
 ## Two stages
 
@@ -34,7 +34,7 @@ Parallel to [`SessionRetriever`](https://github.com/framerslab/agentos/blob/mast
 ## When NOT to use
 
 - Very short corpora (< 50 traces) where BM25's IDF estimates are unreliable.
-- Scenarios without an embedder (BM25 alone: use [`BM25Index`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/search/BM25Index.ts) or the generic `HybridSearcher`).
+- Scenarios without an embedder (BM25 alone: use [`BM25Index`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/search/BM25Index.ts) or the generic `HybridSearcher`).
 - Configurations where every trace has near-identical content (BM25 can't discriminate; rerank would do all the work).
 
 ## Performance characteristics
@@ -47,7 +47,7 @@ Parallel to [`SessionRetriever`](https://github.com/framerslab/agentos/blob/mast
 
 ## Mutex with [`SessionRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts)
 
-In Step 3 MVP, [`HybridRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/hybrid/HybridRetriever.ts) and [`SessionRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts) are mutually exclusive at the bench boundary. Passing both flags throws a documented error inside `runFullCognitiveCase`. A combined path (Hybrid-over-selected-sessions) is a hypothetical Step 7 concept; not implemented.
+In Step 3 MVP, [`HybridRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/hybrid/HybridRetriever.ts) and [`SessionRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts) are mutually exclusive at the bench boundary. Passing both flags throws a documented error inside `runFullCognitiveCase`. A combined path (Hybrid-over-selected-sessions) is a hypothetical Step 7 concept; not implemented.
 
 ## References
 

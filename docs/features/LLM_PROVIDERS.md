@@ -447,7 +447,7 @@ const result = await myAgent.generate(
 
 ## Adding a Custom Provider
 
-Implement the [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface from `@framers/agentos` to add a custom
+Implement the [`IProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface from `@framers/agentos` to add a custom
 LLM provider. Provider registration today is wired up via
 [`AIModelProviderManager`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) — there is no public `registerLLMProvider()`
 shortcut yet; instead, instantiate your provider and inject it via the

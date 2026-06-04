@@ -267,7 +267,7 @@ const callFlow = workflow('phone-intake')
   .compile();
 ```
 
-The [`VoiceTransportAdapter`](https://github.com/framersai/agentos/blob/master/src/orchestration/runtime/VoiceTransportAdapter.ts) bridges the graph I/O cycle:
+The [`VoiceTransportAdapter`](https://github.com/framerslab/agentos/blob/master/src/orchestration/runtime/VoiceTransportAdapter.ts) bridges the graph I/O cycle:
 
 - `getNodeInput(nodeId)` — waits for the user's next speech turn (resolves on `turn_complete`).
 - `deliverNodeOutput(nodeId, text)` — sends the node's response to TTS and emits a `voice_audio` graph event.

@@ -284,7 +284,7 @@ Full type reference is auto-generated from source at [/paracosm](/paracosm). The
 - [`SimulationKernel`](/paracosm/paracosm/core/classes/SimulationKernel): deterministic state machine
 - `WorldModel.simulate`: single-actor turn loop, returns `Promise<RunArtifact>`
 - `run` / `runMany`: prompt, URL, or precompiled scenario quickstarts from the root export
-- [`compileScenario`](/paracosm/paracosm/compiler/functions/compileScenario): turns a scenario draft plus optional source grounding into a runnable [`ScenarioPackage`](https://github.com/framersai/paracosm/blob/master/src/engine/types.ts)
+- [`compileScenario`](/paracosm/paracosm/compiler/functions/compileScenario): turns a scenario draft plus optional source grounding into a runnable [`ScenarioPackage`](https://github.com/framerslab/paracosm/blob/master/src/engine/types.ts)
 
 ## HTTP + SSE server
 

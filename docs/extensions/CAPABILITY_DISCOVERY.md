@@ -494,10 +494,10 @@ All source lives in `packages/agentos/src/discovery/`:
 |------|--------|
 | `types.ts` | All types, [`DEFAULT_DISCOVERY_CONFIG`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/types.ts) |
 | `CapabilityDiscoveryEngine.ts` | [`CapabilityDiscoveryEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityDiscoveryEngine.ts) |
-| `CapabilityIndex.ts` | [`CapabilityIndex`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) |
-| `CapabilityGraph.ts` | [`CapabilityGraph`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) |
+| `CapabilityIndex.ts` | [`CapabilityIndex`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityIndex.ts) |
+| `CapabilityGraph.ts` | [`CapabilityGraph`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityGraph.ts) |
 | `CapabilityContextAssembler.ts` | [`CapabilityContextAssembler`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityContextAssembler.ts) |
-| `CapabilityEmbeddingStrategy.ts` | [`CapabilityEmbeddingStrategy`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) |
-| `CapabilityManifestScanner.ts` | [`CapabilityManifestScanner`](https://github.com/framersai/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) |
+| `CapabilityEmbeddingStrategy.ts` | [`CapabilityEmbeddingStrategy`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityEmbeddingStrategy.ts) |
+| `CapabilityManifestScanner.ts` | [`CapabilityManifestScanner`](https://github.com/framerslab/agentos/blob/master/src/cognition/discovery/CapabilityManifestScanner.ts) |
 | `DiscoverCapabilitiesTool.ts` | `createDiscoverCapabilitiesTool()` |
 | `index.ts` | Barrel re-exports for `@framers/agentos/discovery` |

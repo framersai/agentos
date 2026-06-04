@@ -88,7 +88,7 @@ gmiNode(
 | Mode | Description | Default for |
 |---|---|---|
 | `single_turn` | One LLM call, no internal tool loop | `workflow()` steps |
-| `react_bounded` | ReAct loop up to `maxInternalIterations` | [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) gmi nodes |
+| `react_bounded` | ReAct loop up to `maxInternalIterations` | [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) gmi nodes |
 | `planner_controlled` | PlanningEngine controls the loop | `mission()` steps |
 
 ### toolNode

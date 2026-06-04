@@ -209,12 +209,12 @@ The concrete RAG APIs live under `@framers/agentos/cognition/rag`:
 
 - **[`EmbeddingManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts)** — Text → vector embeddings (OpenAI, Ollama, custom providers)
 - **[`VectorStoreManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts)** — HNSW/InMemory vector storage with similarity search
-- **[`RetrievalAugmentor`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts)** — Default runtime RAG pipeline for embedding + search + context assembly
-- **[`UnifiedRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts)** — Opt-in plan-aware orchestration across multiple retrieval sources
+- **[`RetrievalAugmentor`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/RetrievalAugmentor.ts)** — Default runtime RAG pipeline for embedding + search + context assembly
+- **[`UnifiedRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/unified/UnifiedRetriever.ts)** — Opt-in plan-aware orchestration across multiple retrieval sources
 - **[`HydeRetriever`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/HydeRetriever.ts)** — Hypothetical Document Embedding for better recall (generates pseudo-answers before searching)
 - **[`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts)** — TypeScript-native graph-based RAG with knowledge graph traversal
 
-For most standalone and local-first use cases, prefer `Memory`. Use [`AgentMemory`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/AgentMemory.ts) when you need the compatibility layer or the cognitive observer/reflector APIs.
+For most standalone and local-first use cases, prefer `Memory`. Use [`AgentMemory`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/AgentMemory.ts) when you need the compatibility layer or the cognitive observer/reflector APIs.
 
 ## Enabling RAG In AgentOS
 
@@ -302,7 +302,7 @@ const agentos = await AgentOS.create({
 ### Option B: Let AgentOS create the RAG subsystem (`ragConfig`)
 
 If you don’t want to manage instantiation, use `AgentOSConfig.ragConfig`. AgentOS will create:
-[`EmbeddingManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts) → [`VectorStoreManager`](https://github.com/framersai/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts) → `RetrievalAugmentor`, and pass the augmentor into GMIs.
+[`EmbeddingManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/EmbeddingManager.ts) → [`VectorStoreManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/VectorStoreManager.ts) → `RetrievalAugmentor`, and pass the augmentor into GMIs.
 
 ```ts
 import { AgentOS } from '@framers/agentos';
@@ -509,7 +509,7 @@ const vsmConfig: VectorStoreManagerConfig = {
 
 ## GraphRAG (Optional)
 
-[`GraphRAGEngine`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts) exists as a TypeScript-native implementation (graphology + Louvain community detection). It is not automatically used by GMIs by default; treat it as an advanced subsystem you opt into when your problem benefits from entity/relationship structure.
+[`GraphRAGEngine`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/graph/graphrag/GraphRAGEngine.ts) exists as a TypeScript-native implementation (graphology + Louvain community detection). It is not automatically used by GMIs by default; treat it as an advanced subsystem you opt into when your problem benefits from entity/relationship structure.
 
 - If you use non-OpenAI embedding models (e.g., Ollama), set `GraphRAGConfig.embeddingDimension`, or provide an `embeddingManager` so the engine can probe the embedding dimension at runtime.
 - `GraphRAGEngine` can run without embeddings and/or without an LLM:

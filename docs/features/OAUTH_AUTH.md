@@ -124,7 +124,7 @@ When `oauthFlow` is set, the provider calls `getAccessToken()` before each API r
 
 To add OAuth support for a new LLM provider:
 
-1. Create a new class implementing [`IOAuthFlow`](https://github.com/framersai/agentos/blob/master/src/core/llm/auth/types.ts)
+1. Create a new class implementing [`IOAuthFlow`](https://github.com/framerslab/agentos/blob/master/src/core/llm/auth/types.ts)
 2. Set `providerId` to the provider's registry ID (e.g., `'anthropic'`)
 3. Implement the provider's OAuth flow in `authenticate()`
 4. Implement token refresh in `refresh()`

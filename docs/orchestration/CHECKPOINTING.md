@@ -209,7 +209,7 @@ gmiNode({ instructions: '...' }, {
 
 ## Custom Backend
 
-To use Postgres, Redis, or any other store, implement [`ICheckpointStore`](https://github.com/framersai/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts):
+To use Postgres, Redis, or any other store, implement [`ICheckpointStore`](https://github.com/framerslab/agentos/blob/master/src/orchestration/checkpoint/ICheckpointStore.ts):
 
 ```typescript
 import type { ICheckpointStore, Checkpoint, CheckpointMetadata } from '@framers/agentos/orchestration/checkpoint';
