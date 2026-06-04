@@ -40,6 +40,9 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 120000, // 2 minutes — Memory facade tests take 45s+ for SQLite ops
     hookTimeout: 30000,
+    // Generate the (gitignored) knowledge corpus before tests so corpus-dependent
+    // tests can read it in standalone CI.
+    globalSetup: ['./scripts/vitest-global-setup.mjs'],
     include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
     exclude: [
       'dist', 'coverage', 'node_modules',

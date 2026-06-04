@@ -939,7 +939,13 @@ export function agent(opts: AgentOptions): Agent {
             path: baseOpts.usageLedger?.path,
             sessionId,
           });
-          return mergeAggregates(sessionUsageTally, persisted);
+          // When the persisted ledger is enabled it already records every
+          // send, so it is authoritative; merging the in-memory tally would
+          // double-count. The in-memory tally is only the fallback used when
+          // the ledger is disabled.
+          return baseOpts.usageLedger?.enabled
+            ? persisted
+            : mergeAggregates(sessionUsageTally, persisted);
         },
 
         clear() {
@@ -964,7 +970,11 @@ export function agent(opts: AgentOptions): Agent {
       const inMemory = sessionId
         ? sessionUsageTallies.get(sessionId) ?? createEmptyUsageAggregate(sessionId)
         : agentUsageTally;
-      return mergeAggregates(inMemory, persisted);
+      // The enabled persisted ledger is authoritative; merging the in-memory
+      // tally would double-count (the tally is only a disabled-ledger fallback).
+      return baseOpts.usageLedger?.enabled
+        ? persisted
+        : mergeAggregates(inMemory, persisted);
     },
 
     async close() {

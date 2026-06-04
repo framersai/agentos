@@ -27,10 +27,11 @@ const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** Candidate paths where the corpus file may live relative to this test file. */
 const CORPUS_CANDIDATES = [
-  // From src/query-router/__tests__/ -> knowledge/
-  resolve(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
-  // From dist/query-router/__tests__/ -> knowledge/
+  // From src/orchestration/pipeline/query/__tests__/ -> package-root/knowledge/
+  resolve(MODULE_DIR, '../../../../../knowledge/platform-corpus.json'),
+  // Legacy shallower layouts, kept as fallbacks.
   resolve(MODULE_DIR, '../../../../knowledge/platform-corpus.json'),
+  resolve(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
 ];
 
 /** Resolved path to the platform corpus, or null if not found. */

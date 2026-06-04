@@ -771,10 +771,12 @@ export class QueryClassifier {
     if (this.catalogSummariesCache) return this.catalogSummariesCache;
 
     const candidates = [
-      // Published package layout: knowledge/ sits next to dist/
-      join(MODULE_DIR, '../../knowledge/platform-corpus.json'),
-      // Source layout: knowledge/ sits at package root, src/ is one level down
+      // knowledge/ sits at the package root; this module is nested under
+      // orchestration/pipeline/query, four levels below src/ (or dist/).
+      join(MODULE_DIR, '../../../../knowledge/platform-corpus.json'),
+      // Legacy shallower layouts, kept as fallbacks.
       join(MODULE_DIR, '../../../knowledge/platform-corpus.json'),
+      join(MODULE_DIR, '../../knowledge/platform-corpus.json'),
     ];
 
     try {
