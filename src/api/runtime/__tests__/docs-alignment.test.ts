@@ -17,6 +17,10 @@ const hasLiveDocs = exists('../../../../../apps/agentos-live-docs/docs/index.md'
 const hasSkillsPackages = exists('../../../../agentos-skills/package.json');
 const itIfLiveDocs = hasLiveDocs ? it : it.skip;
 const itIfSkills = hasSkillsPackages ? it : it.skip;
+// Monorepo-root docs (../../../../../../docs) only exist when agentos is a
+// submodule of the monorepo; they are absent in standalone agentos CI.
+const hasRepoRootDocs = exists('../../../../../../docs/README.md');
+const itIfRepoRootDocs = hasRepoRootDocs ? it : it.skip;
 
 describe('AgentOS docs alignment', () => {
   it('keeps the package README aligned with the high-level API surface', () => {
@@ -136,7 +140,7 @@ describe('AgentOS docs alignment', () => {
     expect(typedocConfig.sidebarLinks.Documentation).toBe('https://docs.agentos.sh/documentation');
   });
 
-  it('documents the contributor docs workflow in the canonical repo docs', () => {
+  itIfRepoRootDocs('documents the contributor docs workflow in the canonical repo docs', () => {
     const docsIndex = read('../../../../../../docs/README.md');
     const contributing = read('../../../../../../docs/getting-started/CONTRIBUTING.md');
 
@@ -147,7 +151,7 @@ describe('AgentOS docs alignment', () => {
     expect(contributing).toContain('verify:publication');
   });
 
-  it('points ecosystem API links at the published docs site', () => {
+  itIfRepoRootDocs('points ecosystem API links at the published docs site', () => {
     const ecosystemGuide = read('../../../../../../docs/getting-started/ecosystem.md');
     const packageEcosystemGuide = read('../../../../docs/architecture/ECOSYSTEM.md');
 
@@ -157,7 +161,7 @@ describe('AgentOS docs alignment', () => {
     expect(packageEcosystemGuide).not.toContain('agentos-live-docs branch');
   });
 
-  it('keeps runtime-status guidance centralized across orchestration and backend docs', () => {
+  itIfRepoRootDocs('keeps runtime-status guidance centralized across orchestration and backend docs', () => {
     const runtimeStatusGuide = read('../../../../../../docs/architecture/runtime-status-matrix.md');
     const missionGuide = read('../../../../../../docs/orchestration/mission-api.md');
     const orchestrationOverview = read('../../../../../../docs/orchestration/overview.md');
@@ -174,7 +178,7 @@ describe('AgentOS docs alignment', () => {
     expect(backendApiGuide).toContain('./runtime-status-matrix.md');
   });
 
-  it('labels placeholder backend endpoints as experimental placeholder surfaces', () => {
+  itIfRepoRootDocs('labels placeholder backend endpoints as experimental placeholder surfaces', () => {
     const backendApiGuide = read('../../../../../../docs/architecture/BACKEND_API.md');
 
     expect(backendApiGuide).toContain('/agentos/extensions/install');

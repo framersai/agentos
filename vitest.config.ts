@@ -44,8 +44,8 @@ export default defineConfig({
     exclude: [
       'dist', 'coverage', 'node_modules',
       // onnxruntime-node native binary fails to self-register in CI (ERR_DLOPEN_FAILED)
-      'src/media/audio/__tests__/MusicGenLocalProvider.test.ts',
-      'src/media/audio/__tests__/AudioGenLocalProvider.test.ts',
+      'src/io/media/audio/__tests__/MusicGenLocalProvider.test.ts',
+      'src/io/media/audio/__tests__/AudioGenLocalProvider.test.ts',
       'src/api/runtime/__tests__/generateMusic.test.ts',
       'src/api/runtime/__tests__/generateSFX.test.ts',
       // sharp's native binary is not built in standalone CI (pnpm ignores its
