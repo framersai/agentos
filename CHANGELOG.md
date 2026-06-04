@@ -1,3 +1,8 @@
+## <small>0.9.44 (2026-06-04)</small>
+
+* feat: add per-call requestTimeout override for generateText, generateObject, and AnthropicProvider ([0f5ccb78242182df10ad1d2c71b4039a434d7027](https://github.com/framerslab/agentos/commit/0f5ccb78242182df10ad1d2c71b4039a434d7027))
+* test: resolve credential-knowledge corpus path via import.meta.url ([25b86ad5ac664d2518423808c6b4a7a148950af0](https://github.com/framerslab/agentos/commit/25b86ad5ac664d2518423808c6b4a7a148950af0))
+
 ## <small>0.9.43 (2026-06-04)</small>
 
 * feat: expose souledAgent via api barrel and ./api/souledAgent subpath export ([7330bdf94024905009695f3a6d5b489a619bdabc](https://github.com/framerslab/agentos/commit/7330bdf94024905009695f3a6d5b489a619bdabc))
