@@ -131,13 +131,13 @@ await aria.send('I need help with my invoice.');
 `loadSoul` accepts either a workspace directory or a direct file path:
 
 ```ts
-// Directory — scans all 6 standard files
+// Directory: scans all 6 standard files
 await loadSoul({ source: '~/.agentos/agents/aria' });
 
-// Direct file — loads SOUL.md only
+// Direct file: loads SOUL.md only
 await loadSoul({ source: '~/.agentos/agents/aria/SOUL.md' });
 
-// Inline — for tests and ephemeral agents
+// Inline: for tests and ephemeral agents
 const soulMarkdown = `---\nname: Tester\n---\nYou are a test agent.`;
 // ... write to temp file then loadSoul; or use IPersonaDefinition directly
 ```
@@ -157,17 +157,17 @@ The `hexaco:` block in SOUL.md frontmatter maps directly to AgentOS's existing
 [HEXACO personality model](./HEXACO_PERSONALITY.md). The same six-trait scores
 flow into:
 
-- `PersonaDriftMechanism` — long-term trait drift across sessions
-- [`PersonalityMutationStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — per-trait mutation history
-- [`AdaptPersonalityTool`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) — runtime personality adjustment via emergent capabilities
-- [`PersonaOverlayManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts) — mood-based system-prompt overlays
+- `PersonaDriftMechanism`: long-term trait drift across sessions
+- [`PersonalityMutationStore`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts): per-trait mutation history
+- [`AdaptPersonalityTool`](https://github.com/framerslab/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts): runtime personality adjustment via emergent capabilities
+- [`PersonaOverlayManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/persona_overlays/PersonaOverlayManager.ts): mood-based system-prompt overlays
 
 All existing persona surfaces (mood adaptation, voice routing, avatar generation)
 work identically whether the persona was loaded from JSON or from SOUL.md.
 
 ## Migrating from JSON Personas
 
-The legacy [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) JSON format works alongside SOUL.md — they
+The legacy [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) JSON format works alongside SOUL.md: they
 both produce the same [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) runtime object. To migrate:
 
 ```ts
@@ -187,14 +187,14 @@ The renderer preserves all structured fields in YAML frontmatter and uses
 SOUL.md files are plain markdown. Any agent runtime that reads files can embody
 the same identity. Tested compatible:
 
-- **OpenClaw** — same workspace convention
-- **OpenSouls Soul Engine** — Tanaki and similar agents accept SOUL.md as input
-- **LangChain / CrewAI / Mastra** — pass `soulContent` as system prompt
-- **Claude Code, OpenCode, Codex, Goose** — point the agent at the workspace folder
+- **OpenClaw**: same workspace convention
+- **OpenSouls Soul Engine**: Tanaki and similar agents accept SOUL.md as input
+- **LangChain / CrewAI / Mastra**: pass `soulContent` as system prompt
+- **Claude Code, OpenCode, Codex, Goose**: point the agent at the workspace folder
 
 Cross-model calibration tip: run the same prompts through both a strong model
 (Claude Opus, GPT-4) and a cheap one (GPT-4o-mini, Llama). Where the cheap
-model drifts off-character, your SOUL.md is too vague — tighten those sections
+model drifts off-character, your SOUL.md is too vague: tighten those sections
 and re-test.
 
 ## What Goes Where

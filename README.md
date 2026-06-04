@@ -101,8 +101,8 @@ const aria = await souledAgent({ provider: 'anthropic', soul: '~/.agentos/agents
 
 `gpt-4o` reader, `gpt-4o-2024-08-06` judge, full N=500, single-CLI reproduction with bootstrap 95% CIs and per-benchmark judge-FPR probes.
 
-- **LongMemEval-S: 85.6%** at $0.0090/correct, 3,558 ms p50 — +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's closed-source 86%. The highest publicly reproducible open-source number at `gpt-4o`.
-- **LongMemEval-M: 70.2%** (1.5M-token haystacks, 500 sessions) — the only open-source library above 65% on M with reproducible methodology.
+- **LongMemEval-S: 85.6%** at $0.0090/correct, 3,558 ms p50: +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's closed-source 86%. The highest publicly reproducible open-source number at `gpt-4o`.
+- **LongMemEval-M: 70.2%** (1.5M-token haystacks, 500 sessions): the only open-source library above 65% on M with reproducible methodology.
 
 [Full leaderboard ->](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md) * [Transparency audit ->](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) * [LongMemEval paper](https://arxiv.org/abs/2410.10813) (Wu et al., ICLR 2025)
 
