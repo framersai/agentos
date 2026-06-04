@@ -1,3 +1,9 @@
+## <small>0.9.41 (2026-06-04)</small>
+
+* Merge remote-tracking branch 'origin/master' ([0f86bfad0d9776dfc055aa0688301990f697dd0e](https://github.com/framerslab/agentos/commit/0f86bfad0d9776dfc055aa0688301990f697dd0e))
+* docs: document souledAgent and the memory/ wiki across soul-files, high-level API, examples, and README ([7358c9516db41ad3c6af9b82177adb777379ae78](https://github.com/framerslab/agentos/commit/7358c9516db41ad3c6af9b82177adb777379ae78))
+* feat(agent): souledAgent exposes agent.memory and folds the wiki on close ([a5d9802835e286f62aa58cf911897a88116a07f1](https://github.com/framerslab/agentos/commit/a5d9802835e286f62aa58cf911897a88116a07f1))
+
 ## <small>0.9.40 (2026-06-04)</small>
 
 * fix(agency): mark the optional ws dynamic import with @vite-ignore ([c7f64e737942d771917cdd6fcfa13d1f8a678d44](https://github.com/framerslab/agentos/commit/c7f64e737942d771917cdd6fcfa13d1f8a678d44))
