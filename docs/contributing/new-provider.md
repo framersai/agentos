@@ -16,10 +16,10 @@ A dedicated provider is warranted when:
 
 Concrete providers implement the [`IProvider`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface and live next to the others:
 
-- Interface: [`/src/core/llm/providers/IProvider.ts`](/src/core/llm/providers/IProvider.ts)
-- Implementations: [`/src/core/llm/providers/implementations/`](/src/core/llm/providers/implementations/). Use `OpenAIProvider.ts` as the reference for OpenAI-shaped APIs, `OpenRouterProvider.ts` for an aggregator, and `GroqProvider.ts` or `TogetherProvider.ts` for OpenAI-compatible hosts.
-- Registration and routing: [`/src/core/llm/providers/AIModelProviderManager.ts`](/src/core/llm/providers/AIModelProviderManager.ts)
-- Provider id, default model, and the env-var auto-detect order: [`/src/api/runtime/provider-defaults.ts`](/src/api/runtime/provider-defaults.ts)
+- Interface: [`/src/core/llm/providers/IProvider.ts`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/IProvider.ts)
+- Implementations: [`/src/core/llm/providers/implementations/`](https://github.com/framerslab/agentos/tree/master/src/core/llm/providers/implementations). Use `OpenAIProvider.ts` as the reference for OpenAI-shaped APIs, `OpenRouterProvider.ts` for an aggregator, and `GroqProvider.ts` or `TogetherProvider.ts` for OpenAI-compatible hosts.
+- Registration and routing: [`/src/core/llm/providers/AIModelProviderManager.ts`](https://github.com/framerslab/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts)
+- Provider id, default model, and the env-var auto-detect order: [`/src/api/runtime/provider-defaults.ts`](https://github.com/framerslab/agentos/blob/master/src/api/runtime/provider-defaults.ts)
 
 Model your implementation on the closest existing provider rather than starting from scratch.
 
@@ -34,14 +34,14 @@ Model your implementation on the closest existing provider rather than starting 
 - [ ] A streaming test if the API streams.
 - [ ] Documentation: a short usage section and the default model.
 - [ ] No new required dependency on the core. A provider SDK must be optional or a peer dependency, loaded lazily, so users who do not use the provider do not pay for it.
-- [ ] A named maintainer. Provider integrations break when upstream APIs change, so each needs an owner. Add yourself to [`/.github/CODEOWNERS`](/.github/CODEOWNERS) for the provider file.
+- [ ] A named maintainer. Provider integrations break when upstream APIs change, so each needs an owner. Add yourself to [`/.github/CODEOWNERS`](https://github.com/framerslab/agentos/blob/master/.github/CODEOWNERS) for the provider file.
 - [ ] Conventional Commit title and green CI.
 
 ## Neutrality and disclosure
 
 Merging a provider grants no placement, ordering, or prominence in the README or docs. The provider list is neutral and stays that way.
 
-If a provider relationship involves credits, payment, discounts, or cross-promotion, that is a sponsorship. It is handled separately, and it is disclosed wherever the sponsor appears. See [`/SPONSORS.md`](/SPONSORS.md).
+If a provider relationship involves credits, payment, discounts, or cross-promotion, that is a sponsorship. It is handled separately, and it is disclosed wherever the sponsor appears. See [`/SPONSORS.md`](https://github.com/framerslab/agentos/blob/master/SPONSORS.md).
 
 Describe an integration as a "supported provider." "Partner" is a relationship claim, used only where a written agreement exists.
 
