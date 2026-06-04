@@ -68,7 +68,7 @@ vi.mock('node:fs', async () => {
 });
 
 import { generateText } from '../../src/api/generateText.js';
-import { QueryRouter } from '../../src/query-router/QueryRouter.js';
+import { QueryRouter } from '../../src/orchestration/pipeline/query/QueryRouter.js';
 
 const mockGenerateText = vi.mocked(generateText);
 

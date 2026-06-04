@@ -11,7 +11,7 @@ import {
   createStandaloneMemoryDescriptor,
   createStandaloneMemoryLongTermRetriever,
   createStandaloneMemoryRollingSummarySink,
-} from '../../src/memory/index.js';
+} from '../../src/cognition/memory/index.js';
 
 const cleanupPaths: string[] = [];
 const openMemories: Memory[] = [];

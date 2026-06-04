@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import type { IVectorStore } from '../../src/rag/IVectorStore.js';
+import type { IVectorStore } from '../../src/cognition/rag/IVectorStore.js';
 
 // ---------------------------------------------------------------------------
 // Test embedding helpers

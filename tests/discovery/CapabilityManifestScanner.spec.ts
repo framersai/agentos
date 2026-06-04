@@ -12,7 +12,7 @@ vi.mock('node:fs');
 vi.mock('node:os');
 
 // Import AFTER mocking
-import { CapabilityManifestScanner } from '../../src/discovery/CapabilityManifestScanner.js';
+import { CapabilityManifestScanner } from '../../src/cognition/discovery/CapabilityManifestScanner.js';
 
 // ---------------------------------------------------------------------------
 // HELPERS

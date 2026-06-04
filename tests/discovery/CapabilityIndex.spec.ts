@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CapabilityIndex } from '../../src/discovery/CapabilityIndex.js';
-import type { CapabilityIndexSources, CapabilityDescriptor } from '../../src/discovery/types.js';
+import { CapabilityIndex } from '../../src/cognition/discovery/CapabilityIndex.js';
+import type { CapabilityIndexSources, CapabilityDescriptor } from '../../src/cognition/discovery/types.js';
 
 // ---------------------------------------------------------------------------
 // MOCKS

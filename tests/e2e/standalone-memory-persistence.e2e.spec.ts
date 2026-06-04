@@ -10,7 +10,7 @@ import {
   buildStandaloneMemoryPersonaScopeId,
   createStandaloneMemoryLongTermRetriever,
   createStandaloneMemoryRollingSummarySink,
-} from '../../src/memory';
+} from '../../src/cognition/memory/index.js';
 
 const cleanupPaths: string[] = [];
 const openMemories: Memory[] = [];

@@ -24,7 +24,7 @@ import type {
 } from '../../../src/orchestration/workflows/WorkflowTypes';
 import { WorkflowTaskStatus } from '../../../src/orchestration/workflows/WorkflowTypes';
 import type { WorkflowEngine } from '../../../src/orchestration/workflows/WorkflowEngine';
-import type { GMIManager } from '../../../src/cognitive_substrate/GMIManager';
+import type { GMIManager } from '../../../src/cognition/substrate/GMIManager.js';
 import type { StreamingManager } from '../../../src/core/streaming/StreamingManager';
 import type { IToolOrchestrator } from '../../../src/core/tools/IToolOrchestrator';
 import type { ToolExecutionRequestDetails } from '../../../src/core/tools/ToolExecutor';
@@ -34,8 +34,8 @@ import {
   GMIOutputChunkType,
   type GMIOutputChunk,
   type GMITurnInput,
-} from '../../../src/cognitive_substrate/IGMI';
-import type { IGMI } from '../../../src/cognitive_substrate/IGMI';
+} from '../../../src/cognition/substrate/IGMI.js';
+import type { IGMI } from '../../../src/cognition/substrate/IGMI.js';
 import { AgentOSResponseChunkType } from '../../../src/api/types/AgentOSResponse';
 import { ExtensionManager } from '../../../src/extensions';
 import {

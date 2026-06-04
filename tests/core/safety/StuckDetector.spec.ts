@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { StuckDetector } from '../../../src/core/safety/StuckDetector';
+import { StuckDetector } from '../../../src/safety/runtime/StuckDetector.js';
 
 describe('StuckDetector', () => {
   beforeEach(() => {

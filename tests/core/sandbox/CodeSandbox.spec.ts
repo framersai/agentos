@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { CodeSandbox } from '../../../src/sandbox/executor/CodeSandbox';
-import type { SandboxLanguage } from '../../../src/sandbox/executor/ICodeSandbox';
+import { CodeSandbox } from '../../../src/safety/sandbox/executor/CodeSandbox.js';
+import type { SandboxLanguage } from '../../../src/safety/sandbox/executor/ICodeSandbox.js';
 
 describe('CodeSandbox', () => {
   let sandbox: CodeSandbox;

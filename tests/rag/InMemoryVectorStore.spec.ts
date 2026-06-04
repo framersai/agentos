@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { InMemoryVectorStore } from '../../src/rag/vector_stores/InMemoryVectorStore';
-import type { VectorDocument, QueryOptions, CreateCollectionOptions } from '../../src/rag/IVectorStore';
+import { InMemoryVectorStore } from '../../src/cognition/rag/vector_stores/InMemoryVectorStore.js';
+import type { VectorDocument, QueryOptions, CreateCollectionOptions } from '../../src/cognition/rag/IVectorStore.js';
 
 describe('InMemoryVectorStore', () => {
   let store: InMemoryVectorStore;

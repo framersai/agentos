@@ -4,15 +4,15 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CapabilityContextAssembler } from '../../src/discovery/CapabilityContextAssembler.js';
-import { CapabilityEmbeddingStrategy } from '../../src/discovery/CapabilityEmbeddingStrategy.js';
+import { CapabilityContextAssembler } from '../../src/cognition/discovery/CapabilityContextAssembler.js';
+import { CapabilityEmbeddingStrategy } from '../../src/cognition/discovery/CapabilityEmbeddingStrategy.js';
 import type {
   CapabilityDescriptor,
   CapabilitySearchResult,
   CapabilityDiscoveryConfig,
   CapabilityDiscoveryResult,
-} from '../../src/discovery/types.js';
-import { DEFAULT_DISCOVERY_CONFIG } from '../../src/discovery/types.js';
+} from '../../src/cognition/discovery/types.js';
+import { DEFAULT_DISCOVERY_CONFIG } from '../../src/cognition/discovery/types.js';
 
 // ---------------------------------------------------------------------------
 // HELPERS

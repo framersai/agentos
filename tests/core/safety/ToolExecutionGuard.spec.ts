@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   ToolExecutionGuard,
   ToolTimeoutError,
-} from '../../../src/core/safety/ToolExecutionGuard';
+} from '../../../src/safety/runtime/ToolExecutionGuard.js';
 
 describe('ToolExecutionGuard', () => {
   it('successful execution returns correct result', async () => {

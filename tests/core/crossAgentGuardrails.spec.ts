@@ -3,7 +3,7 @@ import {
   GuardrailAction,
   type GuardrailContext,
   type GuardrailEvaluationResult,
-} from '../../src/core/guardrails/IGuardrailService';
+} from '../../src/safety/guardrails/IGuardrailService.js';
 import {
   type ICrossAgentGuardrailService,
   type CrossAgentOutputPayload,

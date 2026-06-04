@@ -22,7 +22,7 @@ import {
   type IGuardrailService,
   type GuardrailInputPayload,
   type GuardrailOutputPayload,
-} from '../../../src/core/guardrails/IGuardrailService';
+} from '../../../src/safety/guardrails/IGuardrailService.js';
 import type { AgentOSInput } from '../../../src/api/types/AgentOSInput';
 import {
   type AgentOSResponse,

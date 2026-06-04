@@ -4,7 +4,7 @@ import {
   CircuitBreaker,
   CircuitOpenError,
   type CircuitState,
-} from '../../../src/core/safety/CircuitBreaker';
+} from '../../../src/safety/runtime/CircuitBreaker.js';
 
 describe('CircuitBreaker', () => {
   beforeEach(() => {

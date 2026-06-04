@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LogRecord, Logger as OtelLogger, LoggerProvider } from '@opentelemetry/api-logs';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
 
-import { configureAgentOSObservability } from '../../src/evaluation/observability/otel';
+import { configureAgentOSObservability } from '../../src/safety/evaluation/observability/otel.js';
 import { PinoLogger } from '../../src/core/logging/PinoLogger';
 
 class InMemoryLogger implements OtelLogger {

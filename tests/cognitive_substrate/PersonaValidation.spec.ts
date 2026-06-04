@@ -1,6 +1,6 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { IPersonaDefinition } from '../../src/cognitive_substrate/personas/IPersonaDefinition.js';
-import { validatePersona, validatePersonas, personaIsValid, allPersonasValid, formatAggregateReport } from '../../src/cognitive_substrate/personas/PersonaValidation.js';
+import { IPersonaDefinition } from '../../src/cognition/substrate/personas/IPersonaDefinition.js';
+import { validatePersona, validatePersonas, personaIsValid, allPersonasValid, formatAggregateReport } from '../../src/cognition/substrate/personas/PersonaValidation.js';
 
 function makeBasePersona(overrides: Partial<IPersonaDefinition> = {}): IPersonaDefinition {
   return {

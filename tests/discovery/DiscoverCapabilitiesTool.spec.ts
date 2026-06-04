@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createDiscoverCapabilitiesTool } from '../../src/discovery/DiscoverCapabilitiesTool.js';
-import type { ICapabilityDiscoveryEngine, CapabilityDiscoveryResult } from '../../src/discovery/types.js';
+import { createDiscoverCapabilitiesTool } from '../../src/cognition/discovery/DiscoverCapabilitiesTool.js';
+import type { ICapabilityDiscoveryEngine, CapabilityDiscoveryResult } from '../../src/cognition/discovery/types.js';
 import type { ToolExecutionContext } from '../../src/core/tools/ITool.js';
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import {
 import type {
   CapabilityDiscoveryResult,
   ICapabilityDiscoveryEngine,
-} from '../../src/discovery/types.js';
+} from '../../src/cognition/discovery/types.js';
 
 function makeResult(): CapabilityDiscoveryResult {
   return {

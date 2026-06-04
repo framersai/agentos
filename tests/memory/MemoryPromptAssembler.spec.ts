@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { assembleMemoryContext, type MemoryAssemblerInput } from '../../src/memory/core/prompt/MemoryPromptAssembler';
-import type { ScoredMemoryTrace } from '../../src/memory/core/types';
+import { assembleMemoryContext, type MemoryAssemblerInput } from '../../src/cognition/memory/core/prompt/MemoryPromptAssembler.js';
+import type { ScoredMemoryTrace } from '../../src/cognition/memory/core/types.js';
 
 function makeScoredTrace(overrides: Partial<ScoredMemoryTrace> = {}): ScoredMemoryTrace {
   return {

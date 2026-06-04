@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EmbeddingManager } from '../../src/rag/EmbeddingManager';
+import { EmbeddingManager } from '../../src/cognition/rag/EmbeddingManager.js';
 import type { AIModelProviderManager } from '../../src/core/llm/providers/AIModelProviderManager';
 import type { EmbeddingManagerConfig } from '../../src/config/EmbeddingManagerConfiguration';
 

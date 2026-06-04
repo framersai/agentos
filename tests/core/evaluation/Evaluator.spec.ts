@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Evaluator } from '../../../src/evaluation/Evaluator';
-import type { EvalTestCase } from '../../../src/evaluation/IEvaluator';
+import { Evaluator } from '../../../src/safety/evaluation/Evaluator.js';
+import type { EvalTestCase } from '../../../src/safety/evaluation/IEvaluator.js';
 
 describe('Evaluator', () => {
   let evaluator: Evaluator;

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PersonaEvolutionRule } from '../../src/core/workflows/WorkflowTypes';
-import { PersonaOverlayManager } from '../../src/cognitive_substrate/persona_overlays/PersonaOverlayManager';
-import type { PersonaEvolutionContext } from '../../src/cognitive_substrate/persona_overlays/PersonaOverlayTypes';
-import type { IPersonaDefinition } from '../../src/cognitive_substrate/personas/IPersonaDefinition';
+import type { PersonaEvolutionRule } from '../../src/orchestration/workflows/WorkflowTypes.js';
+import { PersonaOverlayManager } from '../../src/cognition/substrate/persona_overlays/PersonaOverlayManager.js';
+import type { PersonaEvolutionContext } from '../../src/cognition/substrate/persona_overlays/PersonaOverlayTypes.js';
+import type { IPersonaDefinition } from '../../src/cognition/substrate/personas/IPersonaDefinition.js';
 
 class TestOverlayManager extends PersonaOverlayManager {
   protected override shouldApplyRule(): boolean {

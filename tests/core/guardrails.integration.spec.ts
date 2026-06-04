@@ -18,7 +18,7 @@ import {
   type GuardrailInputPayload,
   type GuardrailOutputPayload,
   type IGuardrailService,
-} from '../../src/core/guardrails/IGuardrailService';
+} from '../../src/safety/guardrails/IGuardrailService.js';
 
 class FakeStreamingManager {
   private readonly prepared = new Map<StreamId, AgentOSResponse[]>();

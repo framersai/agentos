@@ -4,8 +4,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { AgentMemory } from '../../src/memory/AgentMemory.js';
-import type { MemoryTrace } from '../../src/memory/types.js';
+import { AgentMemory } from '../../src/cognition/memory/AgentMemory.js';
+import type { MemoryTrace } from '../../src/cognition/memory/core/types.js';
 
 function createManager(overrides: Record<string, unknown> = {}) {
   return {

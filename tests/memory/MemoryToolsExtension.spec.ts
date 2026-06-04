@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ToolExecutor } from '../../src/core/tools/ToolExecutor.js';
 import type { ITool } from '../../src/core/tools/ITool.js';
 import { EXTENSION_KIND_TOOL, ExtensionManager } from '../../src/extensions/index.js';
-import { Memory, createMemoryToolsPack } from '../../src/memory/index.js';
+import { Memory, createMemoryToolsPack } from '../../src/cognition/memory/index.js';
 
 const cleanupPaths: string[] = [];
 const openMemories: Memory[] = [];

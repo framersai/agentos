@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ToolExecutor } from '../../../src/core/tools/ToolExecutor';
 import { ITool, ToolExecutionContext, ToolExecutionResult } from '../../../src/core/tools/ITool';
-import { ToolCallRequest, UserContext } from '../../../src/cognitive_substrate/IGMI';
+import { ToolCallRequest, UserContext } from '../../../src/cognition/substrate/IGMI.js';
 
 const userContext: UserContext = { userId: 'u-1' };
 

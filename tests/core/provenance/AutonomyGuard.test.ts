@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AutonomyGuard } from '../../../src/provenance/enforcement/AutonomyGuard.js';
-import { ProvenanceViolationError } from '../../../src/provenance/types.js';
-import type { AutonomyConfig } from '../../../src/provenance/types.js';
+import { AutonomyGuard } from '../../../src/safety/provenance/enforcement/AutonomyGuard.js';
+import { ProvenanceViolationError } from '../../../src/safety/provenance/types.js';
+import type { AutonomyConfig } from '../../../src/safety/provenance/types.js';
 
 /**
  * Helper to create a basic sealed (restrictive) autonomy config.

@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { CapabilityEmbeddingStrategy } from '../../src/discovery/CapabilityEmbeddingStrategy.js';
-import type { CapabilityDescriptor } from '../../src/discovery/types.js';
+import { CapabilityEmbeddingStrategy } from '../../src/cognition/discovery/CapabilityEmbeddingStrategy.js';
+import type { CapabilityDescriptor } from '../../src/cognition/discovery/types.js';
 
 // ---------------------------------------------------------------------------
 // HELPERS

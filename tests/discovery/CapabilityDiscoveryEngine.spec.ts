@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CapabilityDiscoveryEngine } from '../../src/discovery/CapabilityDiscoveryEngine.js';
-import { DEFAULT_DISCOVERY_CONFIG } from '../../src/discovery/types.js';
-import type { CapabilityIndexSources, PresetCoOccurrence } from '../../src/discovery/types.js';
+import { CapabilityDiscoveryEngine } from '../../src/cognition/discovery/CapabilityDiscoveryEngine.js';
+import { DEFAULT_DISCOVERY_CONFIG } from '../../src/cognition/discovery/types.js';
+import type { CapabilityIndexSources, PresetCoOccurrence } from '../../src/cognition/discovery/types.js';
 
 // ---------------------------------------------------------------------------
 // MOCKS

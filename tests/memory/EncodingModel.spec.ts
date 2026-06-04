@@ -13,10 +13,10 @@ import {
   isFlashbulbMemory,
   buildEmotionalContext,
   computeEncodingStrength,
-} from '../../src/memory/core/encoding/EncodingModel';
-import type { ContentFeatures } from '../../src/memory/core/types';
-import type { HexacoTraits, PADState, EncodingConfig } from '../../src/memory/core/config';
-import { DEFAULT_ENCODING_CONFIG } from '../../src/memory/core/config';
+} from '../../src/cognition/memory/core/encoding/EncodingModel.js';
+import type { ContentFeatures } from '../../src/cognition/memory/core/types.js';
+import type { HexacoTraits, PADState, EncodingConfig } from '../../src/cognition/memory/core/config.js';
+import { DEFAULT_ENCODING_CONFIG } from '../../src/cognition/memory/core/config.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

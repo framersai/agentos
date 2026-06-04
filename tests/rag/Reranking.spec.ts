@@ -10,8 +10,8 @@ import {
   LocalCrossEncoderReranker,
   type IRerankerProvider,
   type RerankerServiceConfig,
-} from '../../src/rag/reranking';
-import type { RagRetrievedChunk } from '../../src/rag/IRetrievalAugmentor';
+} from '../../src/cognition/rag/reranking/index.js';
+import type { RagRetrievedChunk } from '../../src/cognition/rag/IRetrievalAugmentor.js';
 
 // Mock fetch for Cohere tests
 const mockFetch = vi.fn();

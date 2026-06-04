@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   configureAgentOSObservability,
   getAgentOSObservabilityState,
-} from '../../../src/evaluation/observability/otel';
+} from '../../../src/safety/evaluation/observability/otel.js';
 
 const ENV_KEYS = [
   'AGENTOS_OBSERVABILITY_ENABLED',

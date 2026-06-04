@@ -15,7 +15,7 @@ vi.mock('../../src/rag/implementations/vector_stores/SqlVectorStore', () => ({
     async checkHealth() { return { isHealthy: true }; }
   },
 }));
-import { VectorStoreManager } from '../../src/rag/VectorStoreManager';
+import { VectorStoreManager } from '../../src/cognition/rag/VectorStoreManager.js';
 import type { VectorStoreManagerConfig, RagDataSourceConfig } from '../../src/config/VectorStoreConfiguration';
 
 describe('VectorStoreManager', () => {

@@ -4,7 +4,7 @@ import {
   convertMulawToPcm16,
   escapeXml,
   validateE164,
-} from '../../src/channels/telephony/telephony-audio';
+} from '../../src/io/channels/telephony/telephony-audio.js';
 
 // ============================================================================
 // convertPcmToMulaw8k

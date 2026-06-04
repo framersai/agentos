@@ -9,7 +9,7 @@ import {
   LlmFeatureDetector,
   HybridFeatureDetector,
   createFeatureDetector,
-} from '../../src/memory/core/encoding/ContentFeatureDetector';
+} from '../../src/cognition/memory/core/encoding/ContentFeatureDetector.js';
 
 describe('ContentFeatureDetector', () => {
   describe('KeywordFeatureDetector', () => {

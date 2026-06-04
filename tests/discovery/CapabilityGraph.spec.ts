@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CapabilityGraph } from '../../src/discovery/CapabilityGraph.js';
-import type { CapabilityDescriptor, PresetCoOccurrence } from '../../src/discovery/types.js';
+import { CapabilityGraph } from '../../src/cognition/discovery/CapabilityGraph.js';
+import type { CapabilityDescriptor, PresetCoOccurrence } from '../../src/cognition/discovery/types.js';
 
 // ---------------------------------------------------------------------------
 // TEST DESCRIPTORS

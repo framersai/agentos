@@ -1,7 +1,7 @@
 ﻿import { describe, it, expect } from 'vitest';
 import { normalizeUsage, snapshotPersonaDetails } from '../../src/orchestration/turn-planner/helpers';
-import type { CostAggregator } from '../../src/cognitive_substrate/IGMI';
-import type { IPersonaDefinition } from '../../src/cognitive_substrate/personas/IPersonaDefinition';
+import type { CostAggregator } from '../../src/cognition/substrate/IGMI.js';
+import type { IPersonaDefinition } from '../../src/cognition/substrate/personas/IPersonaDefinition.js';
 
 describe('orchestration helpers', () => {
   describe('normalizeUsage', () => {

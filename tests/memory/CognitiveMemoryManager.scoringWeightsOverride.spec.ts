@@ -9,13 +9,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CognitiveMemoryManager } from '../../src/memory/CognitiveMemoryManager';
-import type { CognitiveMemoryConfig, PADState } from '../../src/memory/core/config';
-import type { IVectorStore, VectorDocument, QueryResult } from '../../src/rag/IVectorStore';
-import type { IEmbeddingManager } from '../../src/rag/IEmbeddingManager';
-import type { IKnowledgeGraph } from '../../src/memory/retrieval/graph/knowledge/IKnowledgeGraph';
-import type { IWorkingMemory } from '../../src/cognitive_substrate/memory/IWorkingMemory';
-import type { SignalName } from '../../src/memory/core/decay/RetrievalPriorityScorer';
+import { CognitiveMemoryManager } from '../../src/cognition/memory/CognitiveMemoryManager.js';
+import type { CognitiveMemoryConfig, PADState } from '../../src/cognition/memory/core/config.js';
+import type { IVectorStore, VectorDocument, QueryResult } from '../../src/cognition/rag/IVectorStore.js';
+import type { IEmbeddingManager } from '../../src/cognition/rag/IEmbeddingManager.js';
+import type { IKnowledgeGraph } from '../../src/cognition/memory/retrieval/graph/knowledge/IKnowledgeGraph.js';
+import type { IWorkingMemory } from '../../src/cognition/substrate/memory/IWorkingMemory.js';
+import type { SignalName } from '../../src/cognition/memory/core/decay/RetrievalPriorityScorer.js';
 
 function createMockVectorStore(): IVectorStore {
   const collections = new Map<string, VectorDocument[]>();

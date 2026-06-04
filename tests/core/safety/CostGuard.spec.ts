@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   CostGuard,
   CostCapExceededError,
-} from '../../../src/core/safety/CostGuard';
+} from '../../../src/safety/runtime/CostGuard.js';
 
 describe('CostGuard', () => {
   beforeEach(() => {

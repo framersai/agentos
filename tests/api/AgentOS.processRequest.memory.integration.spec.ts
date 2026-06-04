@@ -17,19 +17,19 @@ import {
   type AgentOSToolCallRequestChunk,
   type AgentOSToolResultEmissionChunk,
 } from '../../src/api/types/AgentOSResponse';
-import { GMI } from '../../src/cognitive_substrate/GMI';
+import { GMI } from '../../src/cognition/substrate/GMI.js';
 import {
   GMIOutputChunkType,
   type GMIOutput,
   type GMITurnInput,
-} from '../../src/cognitive_substrate/IGMI';
-import { InMemoryWorkingMemory } from '../../src/cognitive_substrate/memory/InMemoryWorkingMemory';
+} from '../../src/cognition/substrate/IGMI.js';
+import { InMemoryWorkingMemory } from '../../src/cognition/substrate/memory/InMemoryWorkingMemory.js';
 import type { ToolExecutionContext } from '../../src/core/tools/ITool';
 import type { ChatMessage, ModelCompletionResponse } from '../../src/core/llm/providers/IProvider';
-import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
+import { GMIManager } from '../../src/cognition/substrate/GMIManager.js';
 import { ConversationContext } from '../../src/core/conversation/ConversationContext';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/io/facade/Memory';
+import { Memory } from '../../src/cognition/memory/io/facade/Memory.js';
 import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
 import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 

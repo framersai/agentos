@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EventEmitter } from 'events';
-import { AdaptiveVAD, VADResult } from '../../src/hearing/AdaptiveVAD';
-import type { AdaptiveVADConfig } from '../../src/hearing/AdaptiveVAD';
-import type { NoiseProfile } from '../../src/hearing/EnvironmentalCalibrator';
+import { AdaptiveVAD, VADResult } from '../../src/io/hearing/AdaptiveVAD.js';
+import type { AdaptiveVADConfig } from '../../src/io/hearing/AdaptiveVAD.js';
+import type { NoiseProfile } from '../../src/io/hearing/EnvironmentalCalibrator.js';
 
 class InstrumentedCalibrator extends EventEmitter {
   private profile: NoiseProfile | null;

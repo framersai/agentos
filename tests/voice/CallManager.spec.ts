@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CallManager } from '../../src/channels/telephony/CallManager';
-import type { CallManagerEvent } from '../../src/channels/telephony/CallManager';
-import type { IVoiceCallProvider } from '../../src/channels/telephony/IVoiceCallProvider';
+import { CallManager } from '../../src/io/channels/telephony/CallManager.js';
+import type { CallManagerEvent } from '../../src/io/channels/telephony/CallManager.js';
+import type { IVoiceCallProvider } from '../../src/io/channels/telephony/IVoiceCallProvider.js';
 import type {
   VoiceCallConfig,
   NormalizedCallEvent,
   WebhookContext,
   CallRecord,
-} from '../../src/channels/telephony/types';
+} from '../../src/io/channels/telephony/types.js';
 
 // ============================================================================
 // Fixtures

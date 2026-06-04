@@ -15,9 +15,9 @@ import {
 } from '@opentelemetry/sdk-metrics';
 
 import { AgentOSOrchestrator } from '../../src/api/AgentOSOrchestrator';
-import { configureAgentOSObservability } from '../../src/evaluation/observability/otel';
+import { configureAgentOSObservability } from '../../src/safety/evaluation/observability/otel.js';
 import { ConversationContext } from '../../src/core/conversation/ConversationContext';
-import { GMIOutputChunkType } from '../../src/cognitive_substrate/IGMI';
+import { GMIOutputChunkType } from '../../src/cognition/substrate/IGMI.js';
 
 class FakeStreamingManager {
   private seq = 0;

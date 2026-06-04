@@ -15,9 +15,9 @@ import {
   AgentOSResponseChunkType,
   type AgentOSResponse,
 } from '../../src/api/types/AgentOSResponse';
-import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
+import { GMIManager } from '../../src/cognition/substrate/GMIManager.js';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/io/facade/Memory';
+import { Memory } from '../../src/cognition/memory/io/facade/Memory.js';
 import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
 import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 

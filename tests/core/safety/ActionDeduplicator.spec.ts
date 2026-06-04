@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { ActionDeduplicator } from '../../../src/core/safety/ActionDeduplicator';
+import { ActionDeduplicator } from '../../../src/safety/runtime/ActionDeduplicator.js';
 
 describe('ActionDeduplicator', () => {
   beforeEach(() => {

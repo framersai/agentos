@@ -12,9 +12,9 @@ import {
 } from '../../src/api/types/AgentOSExternalToolRequest';
 import type { AgentOSInput, ProcessingOptions } from '../../src/api/types/AgentOSInput';
 import { AgentOSResponseChunkType } from '../../src/api/types/AgentOSResponse';
-import { GMIOutputChunkType } from '../../src/cognitive_substrate/IGMI';
-import type { GMITurnInput, IGMI, GMIOutputChunk } from '../../src/cognitive_substrate/IGMI';
-import type { GMIManager } from '../../src/cognitive_substrate/GMIManager';
+import { GMIOutputChunkType } from '../../src/cognition/substrate/IGMI.js';
+import type { GMITurnInput, IGMI, GMIOutputChunk } from '../../src/cognition/substrate/IGMI.js';
+import type { GMIManager } from '../../src/cognition/substrate/GMIManager.js';
 import type { IToolOrchestrator } from '../../src/core/tools/IToolOrchestrator';
 import type { ConversationManager } from '../../src/core/conversation/ConversationManager';
 import type { StreamingManager } from '../../src/core/streaming/StreamingManager';

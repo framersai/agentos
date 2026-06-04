@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
-import { AdaptiveVAD } from '../../src/hearing/AdaptiveVAD';
-import type { NoiseProfile } from '../../src/hearing/EnvironmentalCalibrator';
+import { AdaptiveVAD } from '../../src/io/hearing/AdaptiveVAD.js';
+import type { NoiseProfile } from '../../src/io/hearing/EnvironmentalCalibrator.js';
 
 class E2ECalibrator extends EventEmitter {
   constructor(private profile: NoiseProfile) {

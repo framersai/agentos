@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CognitiveWorkingMemory } from '../../src/memory/core/working/CognitiveWorkingMemory';
-import type { IWorkingMemory } from '../../src/cognitive_substrate/memory/IWorkingMemory';
+import { CognitiveWorkingMemory } from '../../src/cognition/memory/core/working/CognitiveWorkingMemory.js';
+import type { IWorkingMemory } from '../../src/cognition/substrate/memory/IWorkingMemory.js';
 
 // ---------------------------------------------------------------------------
 // Mock IWorkingMemory

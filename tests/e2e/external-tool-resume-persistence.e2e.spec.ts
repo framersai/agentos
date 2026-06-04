@@ -13,10 +13,10 @@ import {
 } from '../../src/api/types/AgentOSResponse';
 import { resumeExternalToolRequestWithRegisteredTools } from '../../src/api/runtime/resumeExternalToolRequestWithRegisteredTools';
 import type { ToolExecutionContext } from '../../src/core/tools/ITool';
-import { GMIManager } from '../../src/cognitive_substrate/GMIManager';
-import { GMIOutputChunkType, type GMIOutput } from '../../src/cognitive_substrate/IGMI';
+import { GMIManager } from '../../src/cognition/substrate/GMIManager.js';
+import { GMIOutputChunkType, type GMIOutput } from '../../src/cognition/substrate/IGMI.js';
 import { PromptEngine } from '../../src/core/llm/PromptEngine';
-import { Memory } from '../../src/memory/io/facade/Memory';
+import { Memory } from '../../src/cognition/memory/io/facade/Memory.js';
 import { WorkflowFacade } from '../../src/api/runtime/WorkflowFacade';
 import { RagMemoryInitializer } from '../../src/api/runtime/RagMemoryInitializer';
 
