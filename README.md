@@ -234,7 +234,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Project gui
 
 ## Startups & Partnerships
 
-AgentOS is Apache-2.0 and free. The provider list is decided on technical merit and stays neutral, and placement there is never sold. Companies engage through partner startup programs, sponsorship, or a provider integration. See [SPONSORS.md](./SPONSORS.md).
+AgentOS is Apache-2.0 and free. We integrate any quality provider on technical merit, and partners and sponsors are featured in the README and docs, labeled as such. Companies engage through partner startup programs, sponsorship, or a provider integration. See [SPONSORS.md](./SPONSORS.md).
 
 ### Programs & partners
 

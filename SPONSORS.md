@@ -8,20 +8,15 @@ Maintenance, releases, documentation, benchmarks, and new features.
 
 ## What sponsorship does not buy
 
-This is a firewall, and it is deliberate.
-
-- It does not buy a place in the provider list, or a higher position in it. Provider support is decided on technical merit. See the [provider integration guide](docs/contributing/new-provider.md).
-- It does not influence merge decisions, code review, or the roadmap.
-- It does not imply endorsement or partnership. A sponsor is not called a "partner" unless a written agreement says so.
-
-A neutral, trustworthy provider list is the entire point of a multi-provider runtime. That is not traded for placement revenue.
+Sponsorship does not influence merge decisions, code review, or the roadmap. Code quality and correctness are decided on technical merit. "Partner" is used only where a written agreement says so.
 
 ## What sponsors receive
 
 Recognition, clearly labeled as sponsorship:
 
-- A logo or name in the README Sponsors section, sized by tier.
-- A "Sponsored" callout in the relevant docs where it fits.
+- A logo or name in the README Sponsors and Partners sections, sized by tier.
+- Featured placement where it fits, such as a prominent spot in the provider list or examples, or a partner badge, labeled as a sponsor or partner.
+- A "Sponsored" callout in the relevant docs.
 - Acknowledgement in release notes.
 
 Tiers are arranged through GitHub Sponsors or directly. Ask for the current tiers.
@@ -32,7 +27,7 @@ Every sponsor placement is labeled as a sponsor or as sponsored. Any material co
 
 ## Accelerator and credit programs
 
-Membership in a third-party startup program, accelerator, or credit program (cloud credits, model credits, partner perks) is a relationship of the company, Frame, not a sponsorship of this repository. Such memberships may be acknowledged in the README sponsors section, clearly labeled as a program rather than a paid placement, and have no bearing on the neutral provider list. Where AgentOS uses such a service in production, it is also credited factually as a supported provider or as "powered by."
+Membership in a third-party startup program, accelerator, or credit program (cloud credits, model credits, partner perks) is a relationship of the company, Frame, not a sponsorship of this repository. Such memberships are acknowledged in the README, labeled as a program. Where AgentOS uses such a service in production, it is credited as a supported provider or as "powered by," and may be featured as a partner.
 
 ## Become a sponsor
 

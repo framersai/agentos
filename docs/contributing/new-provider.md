@@ -37,13 +37,11 @@ Model your implementation on the closest existing provider rather than starting 
 - [ ] A named maintainer. Provider integrations break when upstream APIs change, so each needs an owner. Add yourself to [`/.github/CODEOWNERS`](https://github.com/framerslab/agentos/blob/master/.github/CODEOWNERS) for the provider file.
 - [ ] Conventional Commit title and green CI.
 
-## Neutrality and disclosure
+## Sponsorship and disclosure
 
-Merging a provider grants no placement, ordering, or prominence in the README or docs. The provider list is neutral and stays that way.
+Integration is free and open to any quality provider on technical merit. Partners and sponsors may also be featured prominently (top of the provider list, in examples, or with a partner badge), labeled as a sponsor or partner wherever they appear. See [`/SPONSORS.md`](https://github.com/framerslab/agentos/blob/master/SPONSORS.md).
 
-If a provider relationship involves credits, payment, discounts, or cross-promotion, that is a sponsorship. It is handled separately, and it is disclosed wherever the sponsor appears. See [`/SPONSORS.md`](https://github.com/framerslab/agentos/blob/master/SPONSORS.md).
-
-Describe an integration as a "supported provider." "Partner" is a relationship claim, used only where a written agreement exists.
+Describe an integration as a "supported provider." "Partner" is a relationship claim, used where an agreement exists.
 
 ## Questions
 
