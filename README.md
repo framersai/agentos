@@ -29,12 +29,10 @@
 
 AgentOS is an open-source TypeScript framework for AI agents that **remember, adapt, and write their own tools**.
 
-- **85.6% on [LongMemEval-S](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)** at $0.0090 per correct answer (gpt-4o reader): +1.4 points over Mastra OM gpt-4o (84.23%), 0.4 behind Emergence.ai's 86% closed-source SOTA.
-- **70.2% on LongMemEval-M** (1.5M-token haystacks, 500 sessions per question): the only open-source library on the public record above 65% on M with publicly reproducible methodology.
+- **Top open-source memory benchmarks:** [85.6% on LongMemEval-S](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md) at $0.0090/correct (gpt-4o), and 70.2% on LongMemEval-M, the only open-source library above 65% on M with reproducible methodology.
 - **Runtime tool forging.** An agent writes a TypeScript function with a Zod schema, an LLM judge approves it, and it runs in a hardened `node:vm` sandbox before joining the catalog for the rest of the session.
-- **Persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory)** with 8 neuroscience-backed mechanisms: Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, and source-confidence decay.
-- **Optional [HEXACO personality](https://docs.agentos.sh/features/hexaco-personality)**, [six orchestration strategies](https://docs.agentos.sh/features/agency-collaboration), [streaming guardrails](https://docs.agentos.sh/features/guardrails-architecture), and a [voice pipeline](https://docs.agentos.sh/features/voice-pipeline), across **11 LLM providers** (9 API-key + 2 local CLI; OpenRouter fans out to 200+ models).
-- **[100+ first-party extensions](https://www.npmjs.com/package/@framers/agentos-extensions)** and **[88 curated `SKILL.md` skills](https://www.npmjs.com/package/@framers/agentos-skills)** auto-discover at startup.
+- **Persistent [cognitive memory](https://docs.agentos.sh/features/cognitive-memory)** with 8 neuroscience-backed mechanisms: Ebbinghaus decay, retrieval-induced forgetting, reconsolidation, source-confidence decay.
+- **Optional [HEXACO personality](https://docs.agentos.sh/features/hexaco-personality)**, [6 orchestration strategies](https://docs.agentos.sh/features/agency-collaboration), [guardrails](https://docs.agentos.sh/features/guardrails-architecture), and [voice](https://docs.agentos.sh/features/voice-pipeline) across **11 LLM providers**; 100+ extensions and 88 skills auto-load at startup.
 
 ---
 
@@ -88,15 +86,6 @@ Three things accumulate across a session and compose into behavior: **memory** (
 **Runtime tool forging.** When no tool covers a sub-task, the agent writes a TypeScript function with a Zod schema; a separate LLM judge approves it; it runs in a hardened `node:vm` sandbox (5s wall clock, no `eval`/`require`/`process`), then joins a discoverable index for the rest of the session. First forge costs full tokens; reuse costs tens. Promoted tools export as `SKILL.md` skills. [Emergent capabilities ->](https://docs.agentos.sh/features/emergent-capabilities)
 
 **HEXACO personality (optional).** Off by default; the runtime behaves identically without it. When supplied, the kernel weights retrieval, specialist routing, and tool selection by trait values, so the same prompt and tools yield measurably different decision sequences. It lives in the kernel, not the prompt, so it persists under context pressure. [HEXACO docs ->](https://docs.agentos.sh/features/hexaco-personality)
-
-```ts
-const coach = agent({
-  provider: 'openai',
-  instructions: 'Career coach. Hold the user to their goals; flag drift; push back on excuses.',
-  personality: { conscientiousness: 0.9, honesty: 0.85, emotionality: 0.3 },
-  memory: { types: ['episodic', 'semantic'] },
-});
-```
 
 **Soul files.** Identity, voice, hard limits, and HEXACO scores can live in a `SOUL.md` workspace. Its `memory/` directory is a markdown wiki (an `index.md` catalog plus `entities/`, `concepts/`, `log/` pages with `[[wikilinks]]`) that *is* the agent's long-term memory: markdown is the source of truth, the vector/graph index is rebuilt from it, and [`souledAgent()`](https://docs.agentos.sh/getting-started/high-level-api) wires it end to end. [Soul Files ->](https://docs.agentos.sh/features/soul-files)
 
@@ -166,7 +155,7 @@ const team = agency({
 const result = await team.generate('Compare TCP vs UDP for game networking.');
 ```
 
-Strategies: `sequential` * `parallel` * `debate` * `review-loop` * `hierarchical` * `graph`. With `strategy: 'hierarchical'` + `emergent: { enabled: true }`, the manager forges new sub-agents at runtime when the static roster doesn't cover a sub-task. `agency()` is for single-request coordination; for long-running loops, compose `agent()` + the lower-level primitives. [Multi-agent docs ->](https://docs.agentos.sh/features/agency-api)
+Strategies: `sequential`, `parallel`, `debate`, `review-loop`, `hierarchical`, `graph`. With `hierarchical` + `emergent: { enabled: true }`, the manager forges new sub-agents at runtime. [Multi-agent docs ->](https://docs.agentos.sh/features/agency-api)
 
 ---
 
@@ -190,13 +179,7 @@ Extensions and skills auto-load at startup. [Extensions architecture ->](https:/
 
 ## Configure API Keys
 
-Three layers, highest priority first: inline `apiKey` on the call (per-tenant), a module-level `setDefaultProvider()` at boot, or environment-variable auto-detection (`OpenRouter -> OpenAI -> Anthropic -> Gemini -> Groq -> Together -> Mistral -> xAI -> claude CLI -> gemini CLI -> Ollama`). Reorder it with `setProviderPriority([...])`; comma-separated keys auto-rotate on quota.
-
-```bash
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-key1,sk-key2,sk-key3   # auto-rotate with quota detection
-```
+Three layers, highest priority first: inline `apiKey` on the call, a module-level `setDefaultProvider()` at boot, or environment-variable auto-detection (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and the rest, resolved in priority order and reorderable with `setProviderPriority([...])`). Comma-separated keys auto-rotate on quota.
 
 [Full credential resolution + default models per provider ->](https://docs.agentos.sh/architecture/llm-providers)
 
