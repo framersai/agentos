@@ -578,7 +578,7 @@ for await (const chunk of agent.processRequest({
 ```
 
 `AgentOSConfig.tools` now accepts the same three forms as the high-level
-helpers: named tool maps, `ExternalToolRegistry` (`Record`, `Map`, or
+helpers: named tool maps, [`ExternalToolRegistry`](https://github.com/framersai/agentos/blob/master/src/api/runtime/externalToolRegistry.ts) (`Record`, `Map`, or
 iterable), and prompt-only `ToolDefinitionForLLM[]`. AgentOS normalizes those
 inputs during `initialize(...)` and registers them into the shared
 [`ToolOrchestrator`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ToolOrchestrator.ts), so direct `processRequest()` turns can plan against and

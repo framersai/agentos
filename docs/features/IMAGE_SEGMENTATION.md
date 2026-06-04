@@ -22,7 +22,7 @@
 ## Overview
 
 `segment()` is a provider-agnostic factory. It accepts an image and exactly one
-prompt, runs the appropriate model, and returns one `SegmentMask` per detected
+prompt, runs the appropriate model, and returns one [`SegmentMask`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/types.ts) per detected
 region. Geometric prompts (point, box, automatic) route to SAM2; open-vocabulary
 text prompts route to a GroundedSAM chain.
 
@@ -51,7 +51,7 @@ for (const m of result.masks) {
 }
 ```
 
-`SegmentOptions`:
+[`SegmentOptions`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/types.ts):
 
 ```typescript
 interface SegmentOptions {
@@ -73,7 +73,7 @@ interface SegmentOptions {
 ```
 
 Exactly one prompt mode must be set. Setting zero or more than one throws
-`InvalidSegmentationPromptError`.
+[`InvalidSegmentationPromptError`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/errors.ts).
 
 ---
 
@@ -82,7 +82,7 @@ Exactly one prompt mode must be set. Setting zero or more than one throws
 The hosted Replicate provider supports **text** (GroundedSAM) and **automatic**
 (SAM2 "segment everything"). **Point** and **box** prompts are part of the API
 surface for a coordinate-capable provider (such as a future local SAM2 provider);
-the Replicate provider returns `SegmentationModeNotSupportedError` for them.
+the Replicate provider returns [`SegmentationModeNotSupportedError`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/errors.ts) for them.
 
 ```typescript
 // Text (open vocabulary) — GroundedSAM
@@ -146,7 +146,7 @@ await segment({
 });
 ```
 
-Custom backends implement `ISegmentationProvider` and register via
+Custom backends implement [`ISegmentationProvider`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/types.ts) and register via
 `registerSegmentationProvider(id, provider)`.
 
 ---
@@ -191,7 +191,7 @@ for (const m of masks) {
 |-------|------|
 | `InvalidSegmentationPromptError` | Zero or more than one prompt mode supplied |
 | `SegmentationModeNotSupportedError` | The provider does not support the resolved mode |
-| `SegmentationProviderError` | Provider/network failure (`code: 'provider_failed'`), poll timeout (`code: 'timeout'`), or malformed model id (`code: 'invalid_request'`) |
+| [`SegmentationProviderError`](https://github.com/framersai/agentos/blob/master/src/io/segmentation/errors.ts) | Provider/network failure (`code: 'provider_failed'`), poll timeout (`code: 'timeout'`), or malformed model id (`code: 'invalid_request'`) |
 
 ---
 

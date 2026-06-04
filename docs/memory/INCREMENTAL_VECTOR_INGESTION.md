@@ -15,7 +15,7 @@ Two ingestion paths sit at different levels of the stack:
 | Path | Builds | Use when |
 |------|--------|----------|
 | [`Memory.ingest()`](./MEMORY_DOCUMENT_INGESTION.md) | A cognitive-memory brain: traces, FTS5, knowledge graph, decay | You want agent memory with recall, consolidation, and forgetting |
-| **`IVectorStore` + content hash** (this page) | A flat collection you own: `{ id, embedding, metadata, textContent }` | You want a plain RAG index for citations, search, or a knowledge base |
+| **[`IVectorStore`](https://github.com/framersai/agentos/blob/master/src/core/vector-store/IVectorStore.ts) + content hash** (this page) | A flat collection you own: `{ id, embedding, metadata, textContent }` | You want a plain RAG index for citations, search, or a knowledge base |
 
 The flat path is what powers, for example, an in-app documentation assistant: one collection of doc chunks, queried per turn, cited back to the source. No traces, no decay, no graph. Embeddings, metadata, and similarity.
 

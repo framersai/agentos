@@ -69,9 +69,9 @@ All paths below are under [`packages/agentos/src/`](https://github.com/framersla
 
 The diagram at the top of this page is the canonical layered view. From top to bottom:
 
-1. **API surface** — `generateText` / `streamText` / `agent` / `agency` / `generateImage`, plus the [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts) lifecycle facade.
+1. **API surface** — `generateText` / [`streamText`](https://github.com/framersai/agentos/blob/master/src/api/streamText.ts) / [`agent`](https://github.com/framersai/agentos/blob/master/src/api/agent.ts) / [`agency`](https://github.com/framersai/agentos/blob/master/src/api/agency.ts) / `generateImage`, plus the [`AgentOS`](https://github.com/framerslab/agentos/blob/master/src/api/AgentOS.ts) lifecycle facade.
 2. **Orchestration** — DAG runtime, `workflow()`, `mission()`, [`AgentGraph`](https://github.com/framerslab/agentos/blob/master/src/orchestration/builders/AgentGraph.ts), HITL, checkpointing, planning engine.
-3. **GMI** — per-mind state: `ConversationHistory`, `CognitiveMemoryBridge`, `SentimentTracker`, `MetapromptExecutor`, persona overlays.
+3. **GMI** — per-mind state: `ConversationHistory`, [`CognitiveMemoryBridge`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/CognitiveMemoryBridge.ts), [`SentimentTracker`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/SentimentTracker.ts), [`MetapromptExecutor`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/MetapromptExecutor.ts), persona overlays.
 4. **Safety & Guardrails** alongside **Tools & Extensions** — 5-tier security (PII, toxicity, grounding, circuit breakers, cost guard) and the 110-extension / 88-skill catalog with capability discovery and runtime tool forging.
 5. **Memory & RAG** — 4-tier cognitive memory, 8 mechanisms (Ebbinghaus decay, retrieval-induced forgetting, …), 7 vector backends, HyDE, GraphRAG, hybrid retrieval, [`CitationVerifier`](https://github.com/framerslab/agentos/blob/master/src/cognition/rag/citation/CitationVerifier.ts).
 6. **LLM providers** — 11 direct providers + OpenRouter fan-out with automatic fallback chains.
@@ -81,7 +81,7 @@ The diagram above the prose shows how a typical request enters at layer 1 and tr
 
 ### API Surface Contract
 
-`generateText()`, `streamText()`, `agent()`, `agency()`, and the `AgentOS` runtime share some configuration names, but the shared config surface does not imply identical enforcement.
+`generateText()`, `streamText()`, `agent()`, `agency()`, and the [`AgentOS`](https://github.com/framersai/agentos/blob/master/src/api/AgentOS.ts) runtime share some configuration names, but the shared config surface does not imply identical enforcement.
 
 - `agent()` is the lightweight stateful facade for prompt assembly, sessions, tools, hooks, personality shaping, and usage-ledger forwarding.
 - `generateText()` / `streamText()` are low-level helper loops for provider selection, direct tool execution, and text-fallback tool calling.
@@ -151,7 +151,7 @@ The GMI delegates to four extracted collaborators to keep the core class focused
 
 | Collaborator | Responsibility |
 |---|---|
-| `ConversationHistoryManager` | Maintains chat history, supports hydration from external stores |
+| [`ConversationHistoryManager`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/ConversationHistoryManager.ts) | Maintains chat history, supports hydration from external stores |
 | `CognitiveMemoryBridge` | Bridges GMI turns to the [`CognitiveMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/CognitiveMemoryManager.ts) (encode/retrieve/observe) |
 | `SentimentTracker` | Tracks user sentiment via [`IUtilityAI`](https://github.com/framerslab/agentos/blob/master/src/cognition/nlp/ai_utilities/IUtilityAI.ts), emits [`GMIEvent`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/GMIEvent.ts) types (frustration, confusion, etc.) |
 | `MetapromptExecutor` | Handles metaprompt triggers, self-reflection, and state updates |
@@ -197,7 +197,7 @@ A user request flows through the following stages:
 5. **Prompt Construction** -- `MetapromptExecutor` assembles system, persona, memory, RAG context, and conversation history into the prompt via `PromptBuilder`.
 6. **Pre-execution Guardrails** -- [`ParallelGuardrailDispatcher`](https://github.com/framerslab/agentos/blob/master/src/safety/guardrails/ParallelGuardrailDispatcher.ts) runs input guardrails (sanitizers first, classifiers in parallel).
 7. **Tool Orchestration** -- [`ToolOrchestrator`](https://github.com/framerslab/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) resolves and executes any tool calls selected by the LLM.
-8. **LLM Execution** -- `StreamingManager` sends the prompt to the selected LLM provider and streams chunks.
+8. **LLM Execution** -- [`StreamingManager`](https://github.com/framersai/agentos/blob/master/src/core/streaming/StreamingManager.ts) sends the prompt to the selected LLM provider and streams chunks.
 9. **Post-execution Guardrails** -- Output guardrails evaluate the response (toxicity, PII, grounding).
 10. **Memory Update** -- `CognitiveMemoryBridge` encodes new memory traces; [`MemoryObserver`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/pipeline/observation/MemoryObserver.ts) queues background consolidation.
 11. **Analytics** -- [`Tracer`](https://github.com/framerslab/agentos/blob/master/src/safety/evaluation/observability/Tracer.ts) records OpenTelemetry spans; cost/token metrics are tracked.
@@ -332,7 +332,7 @@ Packs are loaded by including them in the `extensionManifest` passed to `AgentOS
 
 ### Guardrail Dispatch Model
 
-`ParallelGuardrailDispatcher` uses a two-phase execution model:
+[`ParallelGuardrailDispatcher`](https://github.com/framersai/agentos/blob/master/src/safety/guardrails/ParallelGuardrailDispatcher.ts) uses a two-phase execution model:
 
 1. **Phase 1 (sequential sanitizers)** -- Guardrails with `config.canSanitize === true` run in registration order and can chain `SANITIZE` results deterministically. A `BLOCK` in Phase 1 short-circuits the entire pipeline.
 2. **Phase 2 (parallel classifiers)** -- All remaining guardrails run concurrently via `Promise.allSettled`. A Phase 2 `SANITIZE` is downgraded to `FLAG` because concurrent sanitization would produce non-deterministic results.
@@ -377,7 +377,7 @@ For details on writing custom guardrails, see [Creating Guardrails](../safety/CR
 Personas define the identity, expertise, and behavioral configuration for a GMI instance.
 
 **Key files:**
-- `cognitive_substrate/personas/IPersonaDefinition.ts` -- The `IPersonaDefinition` interface
+- `cognitive_substrate/personas/IPersonaDefinition.ts` -- The [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) interface
 - `cognitive_substrate/personas/PersonaLoader.ts` -- Loads persona JSON files from disk or registry
 - `cognitive_substrate/personas/PersonaValidation.ts` -- Schema validation
 - `cognitive_substrate/persona_overlays/PersonaOverlayManager.ts` -- Runtime persona layering
@@ -815,7 +815,7 @@ Message types: `task_delegation`, `status_update`, `question`, `answer`, `findin
 - **Clarification requests** for ambiguous situations
 - **Escalations** for transferring control to humans
 
-The `ToolOrchestrator` integrates HITL directly: tools declaring side effects can be gated through `hitlManager` before execution, with configurable `approvalTimeoutMs` and auto-approve fallback.
+The [`ToolOrchestrator`](https://github.com/framersai/agentos/blob/master/src/core/tools/ToolOrchestrator.ts) integrates HITL directly: tools declaring side effects can be gated through `hitlManager` before execution, with configurable `approvalTimeoutMs` and auto-approve fallback.
 
 ### Using the API
 
@@ -934,7 +934,7 @@ The engine pipeline: `User Message -> CapabilityIndex.search() -> CapabilityGrap
 
 ### Extension-Provided Tools
 
-Tools are typically loaded via `ExtensionPack` descriptors. The extension registry catalogs 23+ tools, 37 channels, 3 voice extensions, and 4 orchestration tools.
+Tools are typically loaded via [`ExtensionPack`](https://github.com/framersai/agentos/blob/master/src/extensions/manifest.ts) descriptors. The extension registry catalogs 23+ tools, 37 channels, 3 voice extensions, and 4 orchestration tools.
 
 For details, see [Tool Calling & Loading](../extensions/TOOL_CALLING_AND_LOADING.md) and [Capability Discovery](../extensions/CAPABILITY_DISCOVERY.md).
 
@@ -1122,7 +1122,7 @@ When `observability.tracing.enabled` is true, AgentOS creates spans for:
 - LLM calls (`agentos.llm.completion`)
 - Memory retrieval (`agentos.memory.retrieve`)
 
-The [`Tracer`](https://github.com/framerslab/agentos/blob/master/src/safety/evaluation/observability/Tracer.ts) class (`evaluation/observability/Tracer.ts`) wraps `@opentelemetry/api` and uses the configured tracer name (default `"@framers/agentos"`). Trace context is propagated through `AgentOSResponse` metadata when `includeTraceInResponses` is enabled, allowing client-side correlation.
+The [`Tracer`](https://github.com/framerslab/agentos/blob/master/src/safety/evaluation/observability/Tracer.ts) class (`evaluation/observability/Tracer.ts`) wraps `@opentelemetry/api` and uses the configured tracer name (default `"@framers/agentos"`). Trace context is propagated through [`AgentOSResponse`](https://github.com/framersai/agentos/blob/master/src/api/types/AgentOSResponse.ts) metadata when `includeTraceInResponses` is enabled, allowing client-side correlation.
 
 ### Metrics
 

@@ -164,7 +164,7 @@ work identically whether the persona was loaded from JSON or from SOUL.md.
 ## Migrating from JSON Personas
 
 The legacy [`IPersonaDefinition`](https://github.com/framerslab/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) JSON format works alongside SOUL.md — they
-both produce the same `IPersonaDefinition` runtime object. To migrate:
+both produce the same [`IPersonaDefinition`](https://github.com/framersai/agentos/blob/master/src/cognition/substrate/personas/IPersonaDefinition.ts) runtime object. To migrate:
 
 ```ts
 import { renderSoulMarkdown } from '@framers/agentos/cognition/substrate/personas/SoulLoader';

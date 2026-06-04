@@ -33,14 +33,14 @@ Parallel to [`HydeRetriever`](https://github.com/framerslab/agentos/blob/master/
 ## When NOT to use
 
 - Single-session question answering where `CognitiveMemoryManager.retrieve` already surfaces the right chunks.
-- Deployments without ingest-time summarization (no `SessionSummarizer`). SessionRetriever would fall through to plain retrieval every call.
+- Deployments without ingest-time summarization (no [`SessionSummarizer`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/ingest/SessionSummarizer.ts)). SessionRetriever would fall through to plain retrieval every call.
 - Very short sessions (< 5 turns) where the summary and chunks are essentially the same content.
 
 ## References
 
 - **xMemory** ([arxiv 2602.02007v3](https://arxiv.org/abs/2602.02007v3), 2026) — four-level hierarchy (raw → episode → semantic → theme) with two-stage retrieval. Ablation on LoCoMo shows hierarchy alone beats Naive RAG BLEU 27.9→31.8, F1 36.4→40.8 before any retrieval optimization.
 - **TACITREE** ([EMNLP 2025](https://aclanthology.org/2025.emnlp-main.580.pdf), UCSD) — hierarchical tree for multi-session personalized conversation. Level-based retrieval progressively refines from abstract summaries to detail.
-- **Anthropic contextual retrieval** (Sep 2024) — the pattern `SessionSummarizer` implements at session granularity. `SessionRetriever` is the retrieval-time counterpart.
+- **Anthropic contextual retrieval** (Sep 2024) — the pattern `SessionSummarizer` implements at session granularity. [`SessionRetriever`](https://github.com/framersai/agentos/blob/master/src/cognition/memory/retrieval/session/SessionRetriever.ts) is the retrieval-time counterpart.
 
 ## Performance characteristics
 

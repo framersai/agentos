@@ -597,7 +597,7 @@ const remembering = agency({
 });
 ```
 
-> ⚠️ **Scope of `memory: { shared: true }` — per-call, not per-session.** The shared memory store is built fresh for each `generate()` or `stream()` call and torn down when that call returns. Inside `agency().session()`, only the user/assistant message history and aggregate usage persist between `.send()` turns — the agency roster, the shared `AgencyMemoryManager`, and `tier: 'session'` emergent specialists all reset on every turn. To carry shared memory across turns, wire a [`Brain`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) yourself (one `brainId` shared across agents) or run your own multi-call coordinator on top of `agent()` + [`AgencyMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts). Per-agent isolation (each `agent()` keeps its own `brainId`) is unaffected — that boundary still holds across turns.
+> ⚠️ **Scope of `memory: { shared: true }` — per-call, not per-session.** The shared memory store is built fresh for each `generate()` or `stream()` call and torn down when that call returns. Inside `agency().session()`, only the user/assistant message history and aggregate usage persist between `.send()` turns — the agency roster, the shared [`AgencyMemoryManager`](https://github.com/framersai/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts), and `tier: 'session'` emergent specialists all reset on every turn. To carry shared memory across turns, wire a [`Brain`](https://github.com/framerslab/agentos/blob/master/src/cognition/memory/retrieval/store/Brain.ts) yourself (one `brainId` shared across agents) or run your own multi-call coordinator on top of `agent()` + [`AgencyMemoryManager`](https://github.com/framerslab/agentos/blob/master/src/agents/agency/AgencyMemoryManager.ts). Per-agent isolation (each `agent()` keeps its own `brainId`) is unaffected — that boundary still holds across turns.
 
 ### RAG configuration
 
@@ -1147,7 +1147,7 @@ await contentPipeline.close();
 - [`docs/RAG_MEMORY_CONFIGURATION.md`](./RAG_MEMORY_CONFIGURATION.md) — RAG and memory configuration reference
 - [`docs/OBSERVABILITY.md`](./OBSERVABILITY.md) — OTEL integration and trace event reference
 - [`docs/STRUCTURED_OUTPUT.md`](./STRUCTURED_OUTPUT.md) — Zod schema output and extraction patterns
-- [`docs/AGENT_GRAPH.md`](./AGENT_GRAPH.md) — `AgentGraph` programmatic graph builder (advanced)
+- [`docs/AGENT_GRAPH.md`](./AGENT_GRAPH.md) — [`AgentGraph`](https://github.com/framersai/agentos/blob/master/src/orchestration/builders/AgentGraph.ts) programmatic graph builder (advanced)
 - [`src/api/types.ts`](../src/api/types.ts) — canonical TypeScript type definitions
 - [`src/api/agency.ts`](../src/api/agency.ts) — `agency()` implementation
 - [`src/api/hitl.ts`](../src/api/hitl.ts) — HITL handler factories

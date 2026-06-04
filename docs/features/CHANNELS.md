@@ -24,7 +24,7 @@ Your Agent (AgentOS)
 ```
 
 Channels are registered as `messaging-channel` extensions and managed by the
-`ChannelRouter`, which handles load balancing, health checks, and fallback.
+[`ChannelRouter`](https://github.com/framersai/agentos/blob/master/src/io/channels/ChannelRouter.ts), which handles load balancing, health checks, and fallback.
 
 ---
 

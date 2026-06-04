@@ -14,7 +14,7 @@ A dedicated provider is warranted when:
 
 ## What you implement
 
-Concrete providers implement the `IProvider` interface and live next to the others:
+Concrete providers implement the [`IProvider`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/IProvider.ts) interface and live next to the others:
 
 - Interface: [`/src/core/llm/providers/IProvider.ts`](/src/core/llm/providers/IProvider.ts)
 - Implementations: [`/src/core/llm/providers/implementations/`](/src/core/llm/providers/implementations/). Use `OpenAIProvider.ts` as the reference for OpenAI-shaped APIs, `OpenRouterProvider.ts` for an aggregator, and `GroqProvider.ts` or `TogetherProvider.ts` for OpenAI-compatible hosts.
@@ -26,7 +26,7 @@ Model your implementation on the closest existing provider rather than starting 
 ## Acceptance checklist
 
 - [ ] Implements `IProvider` in full: text generation, streaming, structured output, and embeddings where the API supports them. Capabilities the API lacks fail clearly, not silently.
-- [ ] Registered in `AIModelProviderManager` with a stable provider id.
+- [ ] Registered in [`AIModelProviderManager`](https://github.com/framersai/agentos/blob/master/src/core/llm/providers/AIModelProviderManager.ts) with a stable provider id.
 - [ ] Default model and env-var detection added to `provider-defaults.ts`, placed in the auto-detect chain.
 - [ ] Unit tests for request building, response parsing, and error mapping.
 - [ ] Integration tests against the real API, mocked in CI. No live keys run in CI.

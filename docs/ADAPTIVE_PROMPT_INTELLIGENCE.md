@@ -512,7 +512,7 @@ Most adaptive surfaces add zero extra LLM cost. Only two paths add LLM calls bey
 | **`turn_interval` metaprompt fires** | Once every `intervalTurns` turns. | One LLM call (~1500 in / ≤512 out at temperature 0.3). |
 | **`event_based` metaprompt fires** | Only when the SentimentTracker emits the matching event (requires `consecutiveTurnsForTrigger` consecutive matches). | One LLM call per event. |
 | **`manual` metaprompt fires** | Only when the host writes the trigger flag. | One LLM call. |
-| **`AdaptPersonalityTool` invocation** | Only when the LLM decides to call it. Tool body is local (clamping and budget enforcement); no separate LLM call. | $0 (folded into the regular completion's tool-call round). |
+| **[`AdaptPersonalityTool`](https://github.com/framersai/agentos/blob/master/src/cognition/emergent/AdaptPersonalityTool.ts) invocation** | Only when the LLM decides to call it. Tool body is local (clamping and budget enforcement); no separate LLM call. | $0 (folded into the regular completion's tool-call round). |
 | **`PersonaDriftMechanism` analysis** | Per consolidation cycle (default every 5 cycles, gated by `minTracesForAnalysis: 10`). Heuristic only. | $0 |
 
 The defaults out of the box are: sentiment off, drift off, no metaprompts defined. A vanilla `agent({...})` adds nothing to the regular per-turn LLM cost.

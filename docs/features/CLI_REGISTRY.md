@@ -320,7 +320,7 @@ registry.register({
 
 Runtime registrations via `registry.register()` or `registry.registerAll()` are **per-process only**. They do not survive process restarts.
 
-**Fix:** For permanent additions, add a JSON file to `src/sandbox/subprocess/registry/` or add entries to an existing category file. The `CLIRegistry` constructor automatically loads all `*.json` files from this directory.
+**Fix:** For permanent additions, add a JSON file to `src/sandbox/subprocess/registry/` or add entries to an existing category file. The [`CLIRegistry`](https://github.com/framersai/agentos/blob/master/src/safety/sandbox/subprocess/CLIRegistry.ts) constructor automatically loads all `*.json` files from this directory.
 
 ### scan() is slow
 

@@ -128,7 +128,7 @@ handler: hitl.llmJudge({
 
 This is the recommended production default for agencies where most actions are low-risk: a cheap judge auto-handles the easy majority, the human only sees what the judge isn't confident about.
 
-## The `ApprovalRequest` / `ApprovalDecision` contract
+## The [`ApprovalRequest`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) / [`ApprovalDecision`](https://github.com/framersai/agentos/blob/master/src/api/types.ts) contract
 
 Source: [`ApprovalRequest` + `ApprovalDecision` in `src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts).
 
@@ -460,5 +460,5 @@ For agencies that already use the higher-level `agency({ hitl: { approvals: { be
 - [Emergent Capabilities](../architecture/EMERGENT_CAPABILITIES.md) — how `beforeEmergent` gates `spawn_specialist`.
 - [Streaming Semantics](../architecture/STREAMING_SEMANTICS.md) — how `beforeReturn` interacts with the streaming surfaces.
 - [`src/api/hitl.ts`](https://github.com/framerslab/agentos/blob/master/src/api/hitl.ts) — source for the six handler factories.
-- [`src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) — `HitlConfig`, `ApprovalRequest`, `ApprovalDecision`.
+- [`src/api/types.ts`](https://github.com/framerslab/agentos/blob/master/src/api/types.ts) — [`HitlConfig`](https://github.com/framersai/agentos/blob/master/src/api/types.ts), `ApprovalRequest`, `ApprovalDecision`.
 - [`src/orchestration/hitl/`](https://github.com/framerslab/agentos/tree/master/src/orchestration/hitl) — runtime [`HumanInteractionManager`](https://github.com/framerslab/agentos/blob/master/src/orchestration/hitl/HumanInteractionManager.ts).
