@@ -35,6 +35,15 @@ export interface SouledAgentOptions extends AgentOptions {
 }
 
 /**
+ * Return type of {@link souledAgent}: an {@link Agent} with its backing
+ * {@link Memory} store exposed as `memory`, so callers can fold conversation
+ * into the wiki mid-session via `await agent.memory.compileWiki()`. `memory` is
+ * present whenever the soul resolves to a workspace directory; it is absent for
+ * inline souls that fall back to a plain agent.
+ */
+export type SouledAgent = Agent & { memory?: Memory };
+
+/**
  * Create an agent whose long-term memory is its soul-file `memory/` wiki.
  *
  * When the soul resolves to a workspace directory, the wiki is wired end to end
@@ -45,7 +54,7 @@ export interface SouledAgentOptions extends AgentOptions {
  * @param opts - Agent options with a required `soul`.
  * @returns A fully-wired {@link Agent}.
  */
-export async function souledAgent(opts: SouledAgentOptions): Promise<Agent> {
+export async function souledAgent(opts: SouledAgentOptions): Promise<SouledAgent> {
   const loaded = loadSoulFromOption(opts.soul);
   if (!loaded?.memoryDir) {
     // Inline soul or failed load: no workspace dir → no wiki. Plain agent.
@@ -105,18 +114,28 @@ export async function souledAgent(opts: SouledAgentOptions): Promise<Agent> {
     priorTools && !Array.isArray(priorTools) ? priorTools : augmentedTools
   ) as AgentOptions['tools'];
 
-  const built = agent({ ...opts, memoryProvider: provider, tools });
+  const built = agent({ ...opts, memoryProvider: provider, tools }) as SouledAgent;
 
-  // Close the backing store when the agent is disposed, so long-lived hosts that
-  // spawn many souled agents don't leak SQLite connections / file handles.
+  // On teardown: fold the session's conversation into the wiki, then close the
+  // backing store. The compile is best-effort (a failed LLM merge must never
+  // block teardown); closing prevents leaked SQLite handles in long-lived hosts.
   const originalClose = built.close.bind(built);
   built.close = async () => {
+    try {
+      await memory.compileWiki({ reason: 'session-end' });
+    } catch {
+      // best-effort: never block teardown on a compile failure
+    }
     try {
       await originalClose();
     } finally {
       await memory.close();
     }
   };
+
+  // Expose the store so callers can fold conversation into the wiki mid-session
+  // (`await agent.memory.compileWiki()`) without waiting for close().
+  built.memory = memory;
 
   return built;
 }

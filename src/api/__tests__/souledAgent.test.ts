@@ -52,6 +52,21 @@ describe('souledAgent', () => {
     closeSpy.mockRestore();
   });
 
+  it('exposes the memory store on the returned agent for manual compilation', async () => {
+    const a = (await souledAgent({ provider: 'openai', model: 'gpt-4o', soul: dir } as any)) as any;
+    expect(a.memory).toBeTruthy();
+    expect(typeof a.memory.compileWiki).toBe('function');
+    await a.close();
+  });
+
+  it('folds conversation into the wiki on close (best-effort compileWiki)', async () => {
+    const compileSpy = vi.spyOn(Memory.prototype, 'compileWiki');
+    const a = (await souledAgent({ provider: 'openai', model: 'gpt-4o', soul: dir } as any)) as any;
+    await a.close();
+    expect(compileSpy).toHaveBeenCalled();
+    compileSpy.mockRestore();
+  });
+
   it('falls back to a plain agent for an inline soul with no workspace', async () => {
     await souledAgent({ provider: 'openai', model: 'gpt-4o', soul: { content: '---\nname: X\n---\nhi' } } as any);
     expect(agentSpy).toHaveBeenCalledTimes(1);

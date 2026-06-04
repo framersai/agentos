@@ -258,7 +258,7 @@ export { streamText } from './api/streamText.js';
 export type { StreamTextResult, StreamPart } from './api/streamText.js';
 export { agent } from './api/agent.js';
 export { souledAgent } from './api/souledAgent.js';
-export type { SouledAgentOptions } from './api/souledAgent.js';
+export type { SouledAgentOptions, SouledAgent } from './api/souledAgent.js';
 export type {
   Agent,
   AgentSession,
