@@ -59,5 +59,11 @@ describe('Brain Postgres schema initialization', () => {
     expect(ddl).not.toMatch(/\bBLOB\b/);
     expect(ddl).toContain('GENERATED ALWAYS AS IDENTITY PRIMARY KEY');
     expect(ddl).toContain('BYTEA');
+    // SQLite INTEGER is 64-bit, but Postgres INTEGER is int4 (max 2_147_483_647).
+    // Millisecond-epoch columns (created_at, last_accessed, ingested_at, ...) store
+    // Date.now() values (~1.78e12) that overflow int4, so the Postgres DDL must map
+    // every INTEGER to BIGINT. A single leftover bare INTEGER is a latent overflow.
+    expect(ddl).not.toMatch(/\bINTEGER\b/);
+    expect(ddl).toMatch(/\bBIGINT\b/);
   });
 });

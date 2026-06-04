@@ -734,6 +734,14 @@ export class Brain {
 
     return statement
       .replace(/\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b/g, this._features.dialect.autoIncrementPrimaryKey())
+      // SQLite stores every INTEGER as a 64-bit value, but Postgres INTEGER is int4
+      // (max 2_147_483_647). Millisecond-epoch columns (`created_at`, `last_accessed`,
+      // `ingested_at`, `trigger_at`, ...) hold Date.now() values (~1.78e12) that overflow
+      // int4 with `value out of range for type integer` (pg_strtoint32). Map every
+      // remaining INTEGER to BIGINT so Postgres matches SQLite's integer width. Runs after
+      // the AUTOINCREMENT rewrite, so identity columns become `BIGINT GENERATED ALWAYS AS
+      // IDENTITY` (valid, and consistent with the 64-bit surrogate keys SQLite produces).
+      .replace(/\bINTEGER\b/g, 'BIGINT')
       .replace(/\bBLOB\b/g, 'BYTEA');
   }
 
@@ -998,7 +1006,13 @@ export class Brain {
   ): Promise<void> {
     if (rows.length === 0) return;
 
-    const columns = Object.keys(rows[0]!);
+    // Postgres FTS (PostgresFts) adds a `_tsv` tsvector shadow column to the content
+    // table via `ALTER TABLE ... ADD COLUMN _tsv`. SQLite has no such column (it uses a
+    // separate FTS5 virtual table), and the value is regenerated from source columns by
+    // the receiving Brain's own FTS index — so it must never cross backends. Copying it
+    // verbatim fails with "table memory_traces has no column named _tsv" on a
+    // Postgres -> SQLite export. Strip it from the portable column set in both directions.
+    const columns = Object.keys(rows[0]!).filter((c) => c !== '_tsv');
     const placeholders = columns.map(() => '?').join(', ');
     const colList = columns.join(', ');
 
