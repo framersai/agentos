@@ -195,7 +195,7 @@ At matched Top-5 retrieval, +4.5 above the round-level paper baseline (65.7%) an
 
 > **[Full leaderboard ->](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)** * **[Run JSONs ->](https://github.com/framerslab/agentos-bench/tree/master/results/runs)** * **[Transparency audit ->](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/)** * **[LongMemEval paper](https://arxiv.org/abs/2410.10813)** (Wu et al., ICLR 2025, Table 3)
 
-Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-benchmark judge-FPR probes (S 1%, M 2%, LOCOMO 0%), per-case run JSONs, single-CLI reproduction. The [transparency audit](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) covers what the headline numbers don't: LOCOMO's ~6.4% answer-key error rate, the LongMemEval-S context-window confound, and the Mem0-vs-Zep comparison gaming case study, alongside which vendors disclose which methodology dimensions.
+Methodology: bootstrap 95% CIs (10k resamples, seed 42), per-benchmark judge-FPR probes (S 1%, M 2%, LOCOMO 0%), per-case run JSONs, single-CLI reproduction. The [transparency audit](https://agentos.sh/en/blog/memory-benchmark-transparency-audit/) covers what the headline numbers don't: LOCOMO's ~6.4% answer-key error rate, the LongMemEval-S context-window confound, and the Mem0-vs-Zep gaming case study.
 
 ---
 
@@ -219,15 +219,9 @@ Methodology stack: bootstrap 95% CIs at 10k Mulberry32 resamples (seed 42), per-
 
 ## 📄 Technical Whitepaper * Coming Soon
 
-The full architecture and benchmark methodology, written for engineers and researchers who want a citable PDF instead of scrolling docs. Cognitive memory pipeline, classifier-driven dispatch, HEXACO personality modulation, runtime tool forging, full LongMemEval-S/M and LOCOMO benchmark methodology with confidence interval math, judge-FPR probes, per-stage retention metrics, and reproducibility recipes.
+A citable PDF of the full architecture and benchmark methodology: the cognitive memory pipeline, classifier-driven dispatch, runtime tool forging, and the full LongMemEval-S/M + LOCOMO methodology with confidence-interval math and judge-FPR probes. Until it lands, the [benchmarks](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md) and [docs](https://docs.agentos.sh) cover the same ground.
 
-| Covers | What's inside |
-|---|---|
-| **Architecture** | Generalized Mind Instances, IngestRouter / MemoryRouter / ReadRouter, 8 cognitive mechanisms with primary-source citations |
-| **Benchmarks** | LongMemEval-S 85.6%, LongMemEval-M 70.2%, vendor landscape, confidence interval methodology, judge FPR probes, full transparency stack |
-| **Reproducibility** | Per-case run JSONs at `--seed 42`, single-CLI reproduction, Apache-2.0 bench at [github.com/framerslab/agentos-bench](https://github.com/framerslab/agentos-bench) |
-
-**[Join Discord for the announcement ->](https://wilds.ai/discord)** * **[Read the benchmarks now ->](https://github.com/framerslab/agentos-bench/blob/master/results/LEADERBOARD.md)**
+**[Join Discord for the drop ->](https://wilds.ai/discord)**
 
 ---
 
@@ -363,8 +357,6 @@ for (const claim of result.grounding?.claims ?? []) {
 
 The agent calls your `retrieve` hook before generation to fetch sources, runs the model, then decomposes the response into atomic claims and scores each against the sources via cosine similarity (with optional NLI for contradiction detection). Verdicts: `supported`, `weak`, `unverifiable`, `contradicted`. Reach for the low-level [`CitationVerifier`](https://docs.agentos.sh/features/citation-verification) directly only when you own both sides of the generate/retrieve pair yourself.
 
-When you do reach for it directly, `verifier.verify(input, sources)` takes two shapes: raw text (lets the verifier decompose into claims itself) or a pre-decomposed `string[]` of claims (skips internal extraction, scores each item as-is). Use the array shape when you've already split the prose with your own parser or want to verify a curated subset; use the string shape when you have one block of LLM output and want the built-in sentence splitter / configured `extractClaims` LLM decomposer to handle it. `verifier.extractClaims(text)` exposes the same decomposition path the string form uses, so you can inspect / filter the claim list before scoring.
-
 ---
 
 ## See It In Action
@@ -432,13 +424,12 @@ Per-LLM-call knobs live on a flat namespace. Override chain runs **per-call → 
 
 | Knob | Where you set it | What it does |
 |---|---|---|
-| `maxTokens` | `agent({ maxTokens })` / `generate(prompt, { maxTokens })` / `generateText({ maxTokens })` / `generateObject({ maxTokens })` | Caps completion tokens per call. Provider defaults: Anthropic **16000** (was 4096 pre-`0.9.13`; raised so Claude 4 tool-use responses don't truncate mid-JSON), OpenAI 4096, Gemini 8192. |
-| `temperature` | Same surfaces | 0-2; lower = deterministic, higher = creative. Opus 4.7 ignores this — extended-thinking models use their own sampler. |
-| `maxSteps` | `agent({ maxSteps })` | Caps the inner tool-use loop per `.generate()`. Default `5`. Keep low (3-5) when an outer scheduler also iterates; tool latency multiplies by steps. |
-| `controls.maxTotalTokens` | `agent({ controls: { maxTotalTokens } })` | Hard ceiling on input + output combined per turn; full-runtime `agency()` enforces it. |
-| `controls.maxDurationMs` | Same | Hard wall-clock cap per turn; surfaces as a thrown error rather than letting the API hang. |
-| `fallbackProviders` | `agent({ fallbackProviders })` | Ordered chain of `{ provider, model? }` entries the runtime walks on retryable errors. |
-| `provider` / `model` | `agent({ provider, model })` or pass `"provider/model"` to any generate helper | Routing. Slash form auto-detects when prefix matches a known provider id. |
+| `maxTokens` | `agent({ maxTokens })`, any generate helper | Caps completion tokens per call. Provider defaults: Anthropic 16000, OpenAI 4096, Gemini 8192. |
+| `temperature` | Same surfaces | 0-2; lower = deterministic, higher = creative. Extended-thinking models (Opus) use their own sampler and ignore it. |
+| `maxSteps` | `agent({ maxSteps })` | Caps the inner tool-use loop per `.generate()`. Default `5`; keep low (3-5) when an outer scheduler also iterates. |
+| `provider` / `model` | `agent({ provider, model })` or `"provider/model"` on any generate helper | Routing. Slash form auto-detects a known provider prefix. |
+
+Hard per-turn ceilings (`controls.maxTotalTokens`, `controls.maxDurationMs`) and `fallbackProviders` chains: see the [High-Level API guide](https://docs.agentos.sh/getting-started/high-level-api).
 
 ```ts
 // Pin defaults at agent construction:
@@ -455,8 +446,6 @@ const longform = await writer.generate('Draft a 4-page whitepaper.', {
   maxTokens: 16000,
 });
 ```
-
-Caveat: `generateObject()` auto-derives a sane default for `maxTokens` from the Zod schema shape when omitted — Boolean schemas land ~50 tokens, large array-of-object schemas land ~8k. Explicit `maxTokens` overrides the estimate.
 
 ---
 
