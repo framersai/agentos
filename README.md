@@ -63,8 +63,8 @@ npm install @framers/agentos
 import { agent } from '@framers/agentos';
 
 const tutor = agent({
-  provider: 'anthropic',                          // resolves to claude-sonnet-4-5-20250929 (provider default)
-  // model: 'claude-opus-4-7',                    // pin a specific model to override the default
+  provider: 'anthropic',                          // resolves to claude-sonnet-4-6 (provider default)
+  // model: 'claude-opus-4-8',                    // pin a specific model to override the default
   instructions: 'You are a patient CS tutor.',
   personality: { openness: 0.9, conscientiousness: 0.95 },
   memory: { types: ['episodic', 'semantic'], working: { enabled: true } },
@@ -136,7 +136,7 @@ Identity, voice, hard limits, and HEXACO scores can live in a `SOUL.md` workspac
 ```ts
 // Workspace path: loads SOUL.md + companion files from the directory
 const aria = agent({
-  provider: 'anthropic',       // -> claude-sonnet-4-5-20250929 (SOUL.md frontmatter `model:` overrides per-agent)
+  provider: 'anthropic',       // -> claude-sonnet-4-6 (SOUL.md frontmatter `model:` overrides per-agent)
   soul: '~/.agentos/agents/aria',
 });
 
@@ -291,7 +291,7 @@ import { agency } from '@framers/agentos';
 const team = agency({
   strategy: 'graph',
   agents: {
-    researcher: { provider: 'anthropic', instructions: 'Find relevant facts.' },                            // -> claude-sonnet-4-5-20250929
+    researcher: { provider: 'anthropic', instructions: 'Find relevant facts.' },                            // -> claude-sonnet-4-6
     writer:     { provider: 'openai',    instructions: 'Summarize clearly.', dependsOn: ['researcher'] },   // -> gpt-4o
     reviewer:   { provider: 'gemini',    instructions: 'Check accuracy.',    dependsOn: ['writer'] },       // -> gemini-2.5-flash
   },
@@ -435,7 +435,7 @@ Hard per-turn ceilings (`controls.maxTotalTokens`, `controls.maxDurationMs`) and
 // Pin defaults at agent construction:
 const writer = agent({
   provider: 'anthropic',
-  model: 'claude-opus-4-7',
+  model: 'claude-opus-4-8',
   instructions: 'Write punchy product copy.',
   maxTokens: 2000,
   temperature: 0.7,

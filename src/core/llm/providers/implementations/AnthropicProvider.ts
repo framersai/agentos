@@ -106,10 +106,10 @@ export interface AnthropicProviderConfig {
  *   model, `true` otherwise.
  */
 export function modelSupportsTemperature(modelId: string): boolean {
-  // Claude Opus 4.7 and any dated variant of 4.7 — reasoning-default.
-  // Anticipated future reasoning-first siblings (4.8+, 5.x) would be
+  // Claude Opus 4.7 / 4.8 and any dated variant — reasoning-default models
+  // that reject `temperature`. Future reasoning-first siblings (5.x) get
   // added here as Anthropic releases them.
-  return !/^claude-opus-4-7\b/i.test(modelId);
+  return !/^claude-opus-4-(7|8)\b/i.test(modelId);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,10 +239,23 @@ type AnthropicStreamEvent =
  */
 const ANTHROPIC_MODELS: ModelInfo[] = [
   {
+    modelId: 'claude-opus-4-8',
+    providerId: 'anthropic',
+    displayName: 'Claude Opus 4.8',
+    description: 'Most intelligent model for agents and coding.',
+    capabilities: ['chat', 'tool_use', 'vision_input'],
+    contextWindowSize: 200000,
+    outputTokenLimit: 32000,
+    pricePer1MTokensInput: 5,
+    pricePer1MTokensOutput: 25,
+    supportsStreaming: true,
+    status: 'active',
+  },
+  {
     modelId: 'claude-opus-4-7',
     providerId: 'anthropic',
     displayName: 'Claude Opus 4.7',
-    description: 'Most intelligent model for agents and coding.',
+    description: 'Prior Opus generation.',
     capabilities: ['chat', 'tool_use', 'vision_input'],
     contextWindowSize: 200000,
     outputTokenLimit: 32000,

@@ -69,7 +69,7 @@ const KEYLESS_PROVIDER_IDS = new Set(['claude-code-cli', 'gemini-cli']);
  * non-empty.
  *
  * @param model - A `provider:model` string such as `"openai:gpt-4o"`,
- *   `"ollama:llama3.2"`, or `"openrouter:anthropic/claude-sonnet-4-5-20250929"`.
+ *   `"ollama:llama3.2"`, or `"openrouter:anthropic/claude-sonnet-4-6"`.
  * @returns A `ParsedModel` with `providerId` and `modelId` fields.
  * @throws {Error} When the string is missing, not a string, or does not match
  *   the expected `provider:model` format.
