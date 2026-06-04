@@ -18,7 +18,7 @@ export default defineConfig({
   server: {
     deps: {
       // Native C++ addons must not be transformed by Vite
-      external: ['better-sqlite3', 'sharp', 'ws'],
+      external: ['better-sqlite3', 'sharp'],
     },
   },
   ssr: {
@@ -73,7 +73,7 @@ export default defineConfig({
     ],
     server: {
       deps: {
-        external: ['better-sqlite3', 'sharp', 'ws'],
+        external: ['better-sqlite3', 'sharp'],
       },
     },
     coverage: {

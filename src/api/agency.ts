@@ -731,11 +731,14 @@ export function agency(opts: AgencyOptions): Agent {
    *
    * Dynamic import of `ws` keeps voice entirely optional — if the package is
    * not installed the error message tells the caller exactly what to install.
+   * The `@vite-ignore` keeps bundlers/vitest from trying to statically resolve
+   * the optional, possibly-uninstalled `ws` package at transform time (which
+   * otherwise surfaces as a "Failed to load url ws" load error in test runs).
    */
   if (opts.voice?.enabled) {
     agentObj.listen = async (listenOpts?: { port?: number }): Promise<{ port: number; url: string; close: () => Promise<void> }> => {
       try {
-        const ws = await import('ws');
+        const ws = await import(/* @vite-ignore */ 'ws');
         const WebSocketServer = (ws as any).WebSocketServer ?? ws.default?.Server ?? ws.Server;
         const port = listenOpts?.port ?? 0;
 
