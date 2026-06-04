@@ -1,3 +1,7 @@
+## <small>0.9.43 (2026-06-04)</small>
+
+* feat: expose souledAgent via api barrel and ./api/souledAgent subpath export ([7330bdf94024905009695f3a6d5b489a619bdabc](https://github.com/framerslab/agentos/commit/7330bdf94024905009695f3a6d5b489a619bdabc))
+
 ## <small>0.9.42 (2026-06-04)</small>
 
 * feat(providers): default to Claude Sonnet 4.6; add Opus 4.8 to the catalog and temperature handling ([80f3bec76b965b9f4b534f76ce3761338d0c3b43](https://github.com/framerslab/agentos/commit/80f3bec76b965b9f4b534f76ce3761338d0c3b43))
