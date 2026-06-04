@@ -18,7 +18,7 @@ export default defineConfig({
   server: {
     deps: {
       // Native C++ addons must not be transformed by Vite
-      external: ['better-sqlite3', 'sharp'],
+      external: ['better-sqlite3', 'sharp', 'ws'],
     },
   },
   ssr: {
@@ -62,12 +62,18 @@ export default defineConfig({
             'src/io/segmentation/__tests__/maskToEditMask.test.ts',
             'src/io/segmentation/__tests__/cropRegion.test.ts',
             'src/io/segmentation/__tests__/roundtrip.test.ts',
+            // Cross-package integration tests that import sibling-package sources
+            // (agentos-extensions, sql-storage-adapter internals) by relative path.
+            // Those siblings are absent in standalone agentos CI, so the files cannot
+            // load there. Excluded in CI only; they still run in the monorepo.
+            'tests/extensions/WildsMemoryExtensions.spec.ts',
+            'tests/e2e/external-tool-resume-persistence.e2e.spec.ts',
           ]
         : []),
     ],
     server: {
       deps: {
-        external: ['better-sqlite3', 'sharp'],
+        external: ['better-sqlite3', 'sharp', 'ws'],
       },
     },
     coverage: {

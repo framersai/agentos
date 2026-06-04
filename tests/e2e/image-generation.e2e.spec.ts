@@ -49,7 +49,7 @@ describe.skipIf(!hasReplicate)('Image Generation E2E (Replicate)', () => {
   }, 60_000);
 
   it('lists available models including new entries', async () => {
-    const { ReplicateImageProvider } = await import('../../src/media/images/providers/ReplicateImageProvider.js');
+    const { ReplicateImageProvider } = await import('../../src/io/media/images/providers/ReplicateImageProvider.js');
     const provider = new ReplicateImageProvider();
     await provider.initialize({ apiKey: process.env.REPLICATE_API_TOKEN! });
 
