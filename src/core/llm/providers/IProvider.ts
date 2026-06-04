@@ -104,6 +104,15 @@ export interface ModelCompletionOptions {
    */
   maxTokens?: number;
   /**
+   * Per-call request timeout in milliseconds. Overrides the provider's default
+   * request timeout for this single completion only. Large-output callers
+   * (e.g. structured-output generation that emits long strings) can raise the
+   * abort window without slowing the provider's default failover for chat or
+   * narration traffic. Providers that don't implement a request timeout ignore
+   * this field.
+   */
+  requestTimeout?: number;
+  /**
    * Positive values penalize new tokens based on whether they appear in the text so far,
    * increasing the model's likelihood to talk about new topics.
    */

@@ -470,6 +470,7 @@ export class AnthropicProvider implements IProvider {
       '/v1/messages',
       'POST',
       payload,
+      options.requestTimeout,
     );
 
     // Capture the structured-output tool name from the request options
@@ -1299,8 +1300,18 @@ export class AnthropicProvider implements IProvider {
     endpoint: string,
     method: 'POST',
     body: Record<string, unknown>,
+    requestTimeoutOverride?: number,
   ): Promise<T> {
     const url = `${this.config.baseURL}${endpoint}`;
+
+    // Per-call request-timeout override. Large-output callers (e.g. codegen
+    // structured-output that emits long TSX) pass a longer requestTimeout so
+    // they don't abort mid-generation, WITHOUT raising the global default —
+    // chat / narrator traffic keeps the fast failover.
+    const effRequestTimeout =
+      typeof requestTimeoutOverride === 'number' && requestTimeoutOverride > 0
+        ? requestTimeoutOverride
+        : this.config.requestTimeout!;
 
     let lastError: Error = new AnthropicProviderError(
       'Request failed after all retries.',
@@ -1313,7 +1324,7 @@ export class AnthropicProvider implements IProvider {
       const apiKey = this.nextApiKey();
       const headers = this.buildHeaders(apiKey);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout);
+      const timeoutId = setTimeout(() => controller.abort(), effRequestTimeout);
 
       try {
         // Hard JS timeout race over the abort-signal fetch: undici can leave a
@@ -1332,11 +1343,11 @@ export class AnthropicProvider implements IProvider {
             controller.abort();
             rej(
               new AnthropicProviderError(
-                `Hard JS timeout after ${this.config.requestTimeout! + 500}ms (includes 500ms buffer over abort-signal timeout — undici keep-alive zombie).`,
+                `Hard JS timeout after ${effRequestTimeout + 500}ms (includes 500ms buffer over abort-signal timeout — undici keep-alive zombie).`,
                 'REQUEST_HARD_TIMEOUT',
               ),
             );
-          }, this.config.requestTimeout! + 500);
+          }, effRequestTimeout + 500);
         });
         const response = await Promise.race([fetchPromise, hardTimeoutPromise]);
         if (hardTimeoutId) clearTimeout(hardTimeoutId);
@@ -1381,7 +1392,7 @@ export class AnthropicProvider implements IProvider {
           lastError = error;
         } else if (error instanceof Error && error.name === 'AbortError') {
           lastError = new AnthropicProviderError(
-            `Request timed out after ${this.config.requestTimeout}ms.`,
+            `Request timed out after ${effRequestTimeout}ms.`,
             'REQUEST_TIMEOUT',
           );
         } else {

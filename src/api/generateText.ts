@@ -263,6 +263,14 @@ export interface GenerateTextOptions {
    */
   toolChoice?: string | Record<string, unknown>;
   /**
+   * Per-call request timeout in milliseconds, forwarded to the provider for
+   * this call only. Large-output callers (e.g. structured-output generation
+   * that emits long strings) can raise the abort window without slowing the
+   * provider's default failover for chat or narration traffic. Native path
+   * only; providers without a request timeout ignore it.
+   */
+  requestTimeout?: number;
+  /**
    * Maximum number of agentic steps (LLM calls) to execute before returning.
    * Each tool-call round trip counts as one step. Defaults to `1`.
    */
@@ -1315,6 +1323,10 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 // Forward caller toolChoice so orchestrators can force tool_use
                 // (e.g. ai-codegen); models narrate under tool_choice: 'auto'.
                 ...(opts.toolChoice !== undefined ? { toolChoice: opts.toolChoice } : {}),
+                // Forward per-call requestTimeout so large-output callers
+                // (e.g. codegen structured output) get a longer abort window
+                // than the provider default; omitted callers keep the default.
+                ...(opts.requestTimeout !== undefined ? { requestTimeout: opts.requestTimeout } : {}),
                 ...(opts._responseFormat ? { responseFormat: opts._responseFormat }: {}),
               } as any
             );

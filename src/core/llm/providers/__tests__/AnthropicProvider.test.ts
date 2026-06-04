@@ -80,6 +80,40 @@ describe('AnthropicProvider', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Per-call request-timeout override
+  // -------------------------------------------------------------------------
+
+  describe('per-call requestTimeout override', () => {
+    it('aborts at the per-call requestTimeout instead of the 90s default', async () => {
+      vi.useFakeTimers();
+      try {
+        // fetch never settles — only a timeout can end the call.
+        fetchMock.mockReturnValue(new Promise<Response>(() => {}));
+
+        const p = provider.generateCompletion(
+          'claude-sonnet-4-20250514',
+          [{ role: 'user', content: 'Hi' }],
+          { requestTimeout: 1000 },
+        );
+        let settled: 'pending' | 'resolved' | 'rejected' = 'pending';
+        void p.then(
+          () => { settled = 'resolved'; },
+          () => { settled = 'rejected'; },
+        );
+
+        // Advance past the per-call 1000ms (+500ms hard-timeout buffer) but
+        // well short of the 90s provider default. With the override honored
+        // the call rejects; ignoring it leaves the call on the 90s timer.
+        await vi.advanceTimersByTimeAsync(1600);
+
+        expect(settled).toBe('rejected');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Initialization
   // -------------------------------------------------------------------------
 

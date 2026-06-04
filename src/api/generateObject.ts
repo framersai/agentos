@@ -219,6 +219,14 @@ export interface GenerateObjectOptions<T extends ZodType> {
    * non-OpenAI providers).
    */
   policyTier?: 'safe' | 'standard' | 'mature' | 'private-adult';
+  /**
+   * Per-call request timeout in milliseconds, forwarded to
+   * {@link import('./generateText.js').GenerateTextOptions.requestTimeout}.
+   * Structured-output callers that emit long strings (e.g. codegen TSX) raise
+   * the abort window for this call without slowing the provider's default
+   * failover for chat / narration traffic.
+   */
+  requestTimeout?: number;
 }
 
 /**
@@ -529,6 +537,10 @@ export async function generateObject<T extends ZodType>(
       // most-moderated route on the platform — single most common
       // structured-output failure mode for mature callers).
       policyTier: opts.policyTier,
+      // Forward per-call requestTimeout to the underlying generateText so
+      // large-output structured-output callers (codegen TSX) get a longer
+      // abort window than the provider default.
+      requestTimeout: opts.requestTimeout,
       _responseFormat: responseFormat,
     });
 
