@@ -1394,7 +1394,34 @@ export class AnthropicProvider implements IProvider {
           throw new AnthropicProviderError(errorMessage, 'API_REQUEST_FAILED', response.status, errorType, errorData);
         }
 
-        return (await response.json()) as T;
+        // The race above bounds only the connection + response headers; the
+        // body then streams in via `response.json()`. With no bound here, a
+        // provider that sends headers and stalls mid-body (or a large body
+        // that never finishes arriving) hangs this read indefinitely — the
+        // non-streaming sibling of an SSE stall, and the cause of the
+        // multi-minute codegen tool wedge observed 2026-06-05 (32K-token TSX
+        // generations). Bound the body read on the same deadline and abort the
+        // socket so a stalled body fails fast and retries, honoring this
+        // method's documented "resolves within requestTimeout" guarantee.
+        let bodyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          return (await Promise.race([
+            response.json() as Promise<T>,
+            new Promise<never>((_, rej) => {
+              bodyTimeoutId = setTimeout(() => {
+                controller.abort();
+                rej(
+                  new AnthropicProviderError(
+                    `Response body read timed out after ${effRequestTimeout}ms (provider sent headers then stalled mid-body).`,
+                    'REQUEST_HARD_TIMEOUT',
+                  ),
+                );
+              }, effRequestTimeout);
+            }),
+          ]));
+        } finally {
+          if (bodyTimeoutId) clearTimeout(bodyTimeoutId);
+        }
       } catch (error: unknown) {
         clearTimeout(timeoutId);
         if (error instanceof AnthropicProviderError) {

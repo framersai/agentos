@@ -111,6 +111,43 @@ describe('AnthropicProvider', () => {
         vi.useRealTimers();
       }
     });
+
+    it('aborts when the response BODY stalls after headers arrive (not just the connection)', async () => {
+      vi.useFakeTimers();
+      try {
+        // fetch() resolves (headers arrive) but response.json() — the body
+        // read — never settles. This is the non-streaming sibling of an SSE
+        // stall: the fetch race only covers headers, so without bounding the
+        // body read the call hangs forever (the 28-min codegen tool wedge).
+        fetchMock.mockResolvedValue({
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: () => new Promise<never>(() => {}),
+        } as unknown as Response);
+
+        const p = provider.generateCompletion(
+          'claude-sonnet-4-20250514',
+          [{ role: 'user', content: 'Hi' }],
+          { requestTimeout: 1000 },
+        );
+        let settled: 'pending' | 'resolved' | 'rejected' = 'pending';
+        let err: unknown;
+        void p.then(
+          () => { settled = 'resolved'; },
+          (e) => { settled = 'rejected'; err = e; },
+        );
+
+        // Past the 1000ms body-read bound (× a couple of retries): pre-fix the
+        // body read is unbounded and this stays pending forever.
+        await vi.advanceTimersByTimeAsync(6000);
+
+        expect(settled).toBe('rejected');
+        expect(String((err as Error)?.message)).toMatch(/body|stalled|timed out/i);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   // -------------------------------------------------------------------------
