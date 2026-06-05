@@ -26,6 +26,8 @@ Same code, six backends, six judgement points per turn, one set of benchmarks: *
 
 The next sections explain each piece, why it earned its place, and which adjacent ideas were tested and dropped.
 
+> **Markdown memory (the LLM wiki).** This overview covers the vector and graph memory stack. For the markdown-as-source-of-truth model, where the agent reads and rewrites its own markdown knowledge base, see [Soul Files & the Markdown Memory Wiki](/features/soul-files).
+
 ---
 
 ## How it connects (60-second summary)
