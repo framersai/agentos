@@ -1,3 +1,7 @@
+## <small>0.9.46 (2026-06-05)</small>
+
+* fix(anthropic): bound the response-body read in makeApiRequest ([c815c20115c7f271529226e17525c226d42e6085](https://github.com/framerslab/agentos/commit/c815c20115c7f271529226e17525c226d42e6085))
+
 ## <small>0.9.45 (2026-06-05)</small>
 
 * fix(anthropic): bound SSE stream consumption with a stream-idle timeout ([f2c8d6fe56bea972b8bc30f200c28f05baffeff0](https://github.com/framerslab/agentos/commit/f2c8d6fe56bea972b8bc30f200c28f05baffeff0))
