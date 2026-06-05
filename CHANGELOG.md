@@ -1,3 +1,17 @@
+## <small>0.9.45 (2026-06-05)</small>
+
+* fix(anthropic): bound SSE stream consumption with a stream-idle timeout ([f2c8d6fe56bea972b8bc30f200c28f05baffeff0](https://github.com/framerslab/agentos/commit/f2c8d6fe56bea972b8bc30f200c28f05baffeff0))
+* docs: allow featured partner and sponsor placement ([3e23f9325fca025686fb026f3d192a26b370581b](https://github.com/framerslab/agentos/commit/3e23f9325fca025686fb026f3d192a26b370581b))
+* docs: cite the LLM-wiki and memory prior art at the top of the soul-files guide ([339805b04248714f4fcaf616247c8508389a99c9](https://github.com/framerslab/agentos/commit/339805b04248714f4fcaf616247c8508389a99c9))
+* docs: correct README doc links and publish the provider-integration guide ([cd8685d2628bb23c8637ba29863241ce379b75d8](https://github.com/framerslab/agentos/commit/cd8685d2628bb23c8637ba29863241ce379b75d8))
+* docs: cross-link the memory overview to the soul-files LLM wiki ([0f4e8154a8eb816828d9d5a6190e61c39e126c66](https://github.com/framerslab/agentos/commit/0f4e8154a8eb816828d9d5a6190e61c39e126c66))
+* docs: foreground the memory wiki as the LLM wiki in the soul-files guide ([3d925468d059cebc15127c9b8e8ebc1fac6e2226](https://github.com/framerslab/agentos/commit/3d925468d059cebc15127c9b8e8ebc1fac6e2226))
+* docs: replace em dashes with colons in the README and soul-files guide ([b273f8a271677764a6d224306a6c76944d14295c](https://github.com/framerslab/agentos/commit/b273f8a271677764a6d224306a6c76944d14295c))
+* docs: streamline the README ([bb222aa33b9fadbbb406302c98224b65309e692e](https://github.com/framerslab/agentos/commit/bb222aa33b9fadbbb406302c98224b65309e692e))
+* docs: tighten the README further ([1a978c49cebdf6e68720cf2a5dcb6e3befff6ef6](https://github.com/framerslab/agentos/commit/1a978c49cebdf6e68720cf2a5dcb6e3befff6ef6))
+* docs: use GitHub URLs for source links in the provider guide ([ed5a6c2a110e7c41ad253ec2e9fb82f5cbc02d35](https://github.com/framerslab/agentos/commit/ed5a6c2a110e7c41ad253ec2e9fb82f5cbc02d35))
+* Align org references and social links to framerslab ([37fb6eb7a953312facc354f4b43071ed0111000c](https://github.com/framerslab/agentos/commit/37fb6eb7a953312facc354f4b43071ed0111000c))
+
 ## <small>0.9.44 (2026-06-04)</small>
 
 * feat: add per-call requestTimeout override for generateText, generateObject, and AnthropicProvider ([0f5ccb78242182df10ad1d2c71b4039a434d7027](https://github.com/framerslab/agentos/commit/0f5ccb78242182df10ad1d2c71b4039a434d7027))
