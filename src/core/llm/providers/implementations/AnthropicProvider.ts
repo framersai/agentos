@@ -75,6 +75,16 @@ export interface AnthropicProviderConfig {
    */
   requestTimeout?: number;
   /**
+   * Idle timeout for streaming responses, in milliseconds. Unlike
+   * `requestTimeout` (which only bounds connection + response headers, then is
+   * cleared), this bounds the gap BETWEEN streamed chunks: if the provider
+   * sends headers and then stalls mid-body, the SSE reader aborts after this
+   * many ms rather than awaiting `reader.read()` forever. Defaults to
+   * `requestTimeout`.
+   * @default requestTimeout (90000)
+   */
+  streamIdleTimeoutMs?: number;
+  /**
    * Default max_tokens value when the caller does not specify one.
    * Anthropic requires max_tokens on every request.
    * @default 4096
@@ -1530,9 +1540,38 @@ export class AnthropicProvider implements IProvider {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    // Stream-idle watchdog. `reader.read()` has no built-in deadline, and
+    // `makeStreamRequest` clears its connection timeout the moment response
+    // headers arrive — so a provider that sends headers then stalls mid-body
+    // leaves this loop awaiting a chunk that never comes, hanging until the
+    // CALLER's outer timeout fires (observed: a 25-min orchestrator stall at
+    // iterations:0, 2026-06-05). Bound each read: if no chunk arrives within
+    // streamIdleTimeoutMs, abort and throw STREAM_IDLE_TIMEOUT so the caller
+    // can retry or fail fast instead of hanging.
+    const streamIdleTimeoutMs =
+      this.config.streamIdleTimeoutMs ?? this.config.requestTimeout ?? 90_000;
+
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        let idleTimer: ReturnType<typeof setTimeout> | undefined;
+        const readResult = (await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            idleTimer = setTimeout(
+              () =>
+                reject(
+                  new AnthropicProviderError(
+                    `Stream idle: no data received for ${streamIdleTimeoutMs}ms (provider stalled mid-stream).`,
+                    'STREAM_IDLE_TIMEOUT',
+                  ),
+                ),
+              streamIdleTimeoutMs,
+            );
+          }),
+        ]).finally(() => {
+          if (idleTimer) clearTimeout(idleTimer);
+        })) as ReadableStreamReadResult<Uint8Array>;
+        const { done, value } = readResult;
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -1565,6 +1604,10 @@ export class AnthropicProvider implements IProvider {
         }
       }
     } catch (error: unknown) {
+      // Preserve a typed provider error (e.g. STREAM_IDLE_TIMEOUT) so the
+      // caller can distinguish a mid-stream stall from a generic parse failure
+      // and decide whether to retry, instead of mislabeling it.
+      if (error instanceof AnthropicProviderError) throw error;
       const message = error instanceof Error ? error.message : 'SSE stream parsing error';
       console.error('AnthropicProvider: Error reading SSE stream:', message);
       throw new AnthropicProviderError(message, 'STREAM_PARSING_ERROR');

@@ -114,6 +114,80 @@ describe('AnthropicProvider', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Stream-idle timeout (mid-stream stall)
+  // -------------------------------------------------------------------------
+
+  describe('stream-idle timeout', () => {
+    it('aborts a stalled stream with STREAM_IDLE_TIMEOUT instead of hanging on reader.read()', async () => {
+      vi.useFakeTimers();
+      try {
+        const encoder = new TextEncoder();
+        // Emits the opening event, then stalls forever: never enqueues another
+        // chunk and never closes. Pre-fix, parseSseStream's reader.read() would
+        // await this second chunk indefinitely (until the caller's outer
+        // timeout). The idle watchdog must bound it.
+        const stalled = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                'event: message_start\ndata: {"type":"message_start","message":{"id":"m1","usage":{"input_tokens":1}}}\n\n',
+              ),
+            );
+          },
+          // After the queued chunk drains, the consumer's next read pulls — and
+          // this never resolves and never closes → a genuine mid-stream stall.
+          pull() {
+            return new Promise<void>(() => {});
+          },
+        });
+        fetchMock.mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          body: stalled,
+        } as unknown as Response);
+
+        const p = new AnthropicProvider();
+        await p.initialize({ apiKey: 'test-key', streamIdleTimeoutMs: 1000 });
+
+        let settled: 'pending' | 'resolved' | 'rejected' = 'pending';
+        const chunks: Array<{ error?: { message?: string } }> = [];
+        const consume = (async () => {
+          for await (const chunk of p.generateCompletionStream(
+            'claude-sonnet-4-20250514',
+            [{ role: 'user', content: 'Hi' }],
+            {},
+          )) {
+            chunks.push(chunk as { error?: { message?: string } });
+          }
+        })().then(
+          () => {
+            settled = 'resolved';
+          },
+          () => {
+            settled = 'rejected';
+          },
+        );
+
+        // Past the 1000ms idle bound: the stalled read loses the race, the
+        // watchdog aborts, and the generator SETTLES (bounded) instead of
+        // hanging forever — pre-fix this never settles within 1300ms.
+        await vi.advanceTimersByTimeAsync(1300);
+        await consume;
+
+        expect(settled).not.toBe('pending');
+        // The stall surfaces as a terminal STREAM_PROCESSING_ERROR chunk whose
+        // message names the idle watchdog (not a silent truncation).
+        const errChunk = chunks.find((c) => c?.error);
+        expect(errChunk?.error?.message).toMatch(/idle|stalled/i);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Initialization
   // -------------------------------------------------------------------------
 
