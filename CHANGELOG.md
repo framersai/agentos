@@ -1,3 +1,7 @@
+## <small>0.9.48 (2026-06-06)</small>
+
+* fix(llm): clamp max_tokens to the model's output ceiling ([2adb5eb141e70064ab572a56e2d3bea529823a8a](https://github.com/framerslab/agentos/commit/2adb5eb141e70064ab572a56e2d3bea529823a8a))
+
 ## <small>0.9.47 (2026-06-06)</small>
 
 * fix(generateText): forward requestTimeout on planning + prompt-shim completion paths ([b6d9c64ace5d9d45ddfcecd6f76de0a060163da3](https://github.com/framerslab/agentos/commit/b6d9c64ace5d9d45ddfcecd6f76de0a060163da3))
