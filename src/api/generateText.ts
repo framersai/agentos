@@ -169,6 +169,13 @@ export interface PlanningConfig {
    * Defaults to `2048`.
    */
   maxTokens?: number;
+
+  /**
+   * Per-call request timeout (ms) for the planning completion. Forwarded to
+   * the provider so a stalled planning call honors the caller's bound instead
+   * of hanging until the provider default.
+   */
+  requestTimeout?: number;
 }
 
 /**
@@ -632,6 +639,7 @@ export async function createPlan(
   const systemPrompt = config?.systemPrompt ?? DEFAULT_PLANNING_SYSTEM_PROMPT;
   const temperature = config?.temperature ?? 0.2;
   const maxTokens = config?.maxTokens ?? 2048;
+  const requestTimeout = config?.requestTimeout;
 
   // Build the planning conversation: system prompt + user context
   const planMessages: Array<Record<string, unknown>> = [
@@ -654,6 +662,7 @@ export async function createPlan(
   const response = await provider.generateCompletion(modelId, planMessages, {
     temperature,
     maxTokens,
+    ...(requestTimeout !== undefined ? { requestTimeout } : {}),
   });
 
   // Accumulate planning call usage
@@ -1205,7 +1214,9 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
           resolved.modelId,
           userMessages,
           toolNames,
-          planConfig,
+          // Thread the caller's per-call requestTimeout into the planning
+          // completion (a planning-specific override on planConfig wins).
+          { ...planConfig, requestTimeout: planConfig?.requestTimeout ?? opts.requestTimeout },
           totalUsage,
         );
 
@@ -1239,6 +1250,12 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             const r = await provider.generateCompletion(resolved.modelId, msgs as any, {
               temperature: opts.temperature,
               maxTokens: opts.maxTokens,
+              // Forward per-call requestTimeout so the prompt-tool-calling shim
+              // (toolMode:'prompt') honors the caller's timeout like the native
+              // step loop already does. Without it, a stalled provider call on
+              // this path hangs until the provider's own default, silently
+              // ignoring the caller's requestTimeout bound.
+              ...(opts.requestTimeout !== undefined ? { requestTimeout: opts.requestTimeout } : {}),
             } as any);
             const cc = r.choices?.[0]?.message?.content;
             return {
