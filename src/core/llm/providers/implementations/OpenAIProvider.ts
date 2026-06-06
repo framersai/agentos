@@ -36,6 +36,7 @@ import {
 import { OpenAIProviderError } from '../errors/OpenAIProviderError';
 import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 import { toOpenAiResponseFormat } from './openai-response-format-guard';
+import { clampMaxOutputTokens } from '../model-output-limits.js';
 // Assuming a fetch-like interface is available globally or polyfilled (e.g., node-fetch)
 // For Node.js, ensure 'node-fetch' is a dependency or use Node's built-in fetch from v18+.
 // import fetch, { RequestInit, Response as FetchResponse, AbortController } from 'node-fetch'; // Example for Node
@@ -653,15 +654,20 @@ export class OpenAIProvider implements IProvider {
     if (options.temperature !== undefined) payload.temperature = options.temperature;
     if (options.topP !== undefined) payload.top_p = options.topP;
     if (options.maxTokens !== undefined) {
+      // Clamp to the model's real output ceiling first: a request sized for
+      // a flagship model (e.g. 32000 for Claude Opus) is rejected by gpt-4o
+      // (max 16384) when the fallback chain routes here. The clamp is a
+      // no-op for models whose ceiling is at or above the request.
+      const effMaxTokens = clampMaxOutputTokens(modelId, options.maxTokens) ?? options.maxTokens;
       // OpenAI's reasoning + GPT-5 model families reject `max_tokens`
       // and require `max_completion_tokens` instead. Legacy chat
       // completions (gpt-4o, gpt-4-turbo, gpt-3.5, etc.) keep
-      // `max_tokens`. The two fields are otherwise equivalent — same
+      // `max_tokens`. The two fields are otherwise equivalent: same
       // semantic meaning, just renamed in the newer API surface.
       if (modelRequiresMaxCompletionTokens(modelId)) {
-        payload.max_completion_tokens = options.maxTokens;
+        payload.max_completion_tokens = effMaxTokens;
       } else {
-        payload.max_tokens = options.maxTokens;
+        payload.max_tokens = effMaxTokens;
       }
     }
     if (options.presencePenalty !== undefined) payload.presence_penalty = options.presencePenalty;

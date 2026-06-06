@@ -22,6 +22,7 @@ import {
 import { OpenRouterProviderError } from '../errors/OpenRouterProviderError';
 import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 import { createGMIErrorFromError, GMIErrorCode } from '../../../utils/errors.js'; // Corrected import path
+import { clampMaxOutputTokens } from '../model-output-limits.js';
 
 /**
  * Configuration specific to the OpenRouterProvider.
@@ -269,7 +270,10 @@ export class OpenRouterProvider implements IProvider {
       // capacity (e.g. 64000 for claude-haiku-4-5), which causes 402 credit-required
       // errors on accounts without enough buffer. Default to 4096 — the same value
       // AnthropicProvider uses — so short prompts succeed without explicit tuning.
-      max_tokens: options.maxTokens ?? 4096,
+      // Then clamp to the model's output ceiling so a request sized for a
+      // flagship model is not rejected when routed to a lower-ceiling OpenAI
+      // model (e.g. openai/gpt-4o caps at 16384, not 32000).
+      max_tokens: clampMaxOutputTokens(modelId, options.maxTokens) ?? 4096,
       ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
       ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
       ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
@@ -313,7 +317,10 @@ export class OpenRouterProvider implements IProvider {
       // capacity (e.g. 64000 for claude-haiku-4-5), which causes 402 credit-required
       // errors on accounts without enough buffer. Default to 4096 — the same value
       // AnthropicProvider uses — so short prompts succeed without explicit tuning.
-      max_tokens: options.maxTokens ?? 4096,
+      // Then clamp to the model's output ceiling so a request sized for a
+      // flagship model is not rejected when routed to a lower-ceiling OpenAI
+      // model (e.g. openai/gpt-4o caps at 16384, not 32000).
+      max_tokens: clampMaxOutputTokens(modelId, options.maxTokens) ?? 4096,
       ...(options.presencePenalty !== undefined && { presence_penalty: options.presencePenalty }),
       ...(options.frequencyPenalty !== undefined && { frequency_penalty: options.frequencyPenalty }),
       ...(options.stopSequences !== undefined && { stop: options.stopSequences }),
