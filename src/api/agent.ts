@@ -696,6 +696,10 @@ export function agent(opts: AgentOptions): Agent {
     // session.send / stream invocation this agent makes. Unset means
     // the underlying generateText falls back to the provider default.
     maxTokens: opts.maxTokens,
+    // Extended-thinking budget forwarded to thinking-capable models on every
+    // generate / stream / session call (both spread baseOpts). Unset means
+    // thinking stays off; the provider ignores it on unsupported models.
+    thinking: opts.thinking,
     chainOfThought: opts.chainOfThought ?? true,
     apiKey: opts.apiKey,
     baseUrl: opts.baseUrl,

@@ -1310,6 +1310,25 @@ export interface BaseAgentConfig {
    */
   maxTokens?: number;
   /**
+   * Extended-thinking budget (in tokens) forwarded to thinking-capable
+   * models (Opus 4.7/4.8) on every `generate()` / `stream()` / session call
+   * this agent makes. When set, the provider emits reasoning blocks and
+   * floors `maxTokens` at `budgetTokens + 8192`. Omitted = thinking off.
+   * No effect on models that do not support extended thinking.
+   *
+   * @example
+   * ```ts
+   * const codegen = agent({
+   *   provider: 'anthropic',
+   *   model: 'claude-opus-4-8',
+   *   tools: { GenerateCode, RunTests, JudgeOutput },
+   *   maxTokens: 24000,
+   *   thinking: { budgetTokens: 8000 },
+   * });
+   * ```
+   */
+  thinking?: { budgetTokens: number };
+  /**
    * Memory configuration.
    * - `true` — enable in-memory conversation history with default settings.
    * - `false` — disable memory; every call is stateless.

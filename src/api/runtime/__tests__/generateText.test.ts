@@ -157,6 +157,104 @@ describe('generateText', () => {
     ]);
   });
 
+  it('forwards the thinking budget to the provider completion options', async () => {
+    hoisted.generateCompletion.mockResolvedValue({
+      modelId: 'gpt-4.1-mini',
+      usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 },
+      choices: [{ message: { role: 'assistant', content: 'done' }, finishReason: 'stop' }],
+    });
+
+    await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'hi',
+      thinking: { budgetTokens: 4096 },
+    });
+
+    expect(hoisted.generateCompletion.mock.calls[0]?.[2]?.thinking).toEqual({
+      budgetTokens: 4096,
+    });
+  });
+
+  it('omits thinking from provider options when no budget is configured', async () => {
+    hoisted.generateCompletion.mockResolvedValue({
+      modelId: 'gpt-4.1-mini',
+      usage: { promptTokens: 5, completionTokens: 3, totalTokens: 8 },
+      choices: [{ message: { role: 'assistant', content: 'done' }, finishReason: 'stop' }],
+    });
+
+    await generateText({ model: 'openai:gpt-4.1-mini', prompt: 'hi' });
+
+    expect(hoisted.generateCompletion.mock.calls[0]?.[2]).not.toHaveProperty('thinking');
+  });
+
+  it('replays the prior assistant turn thinking blocks when continuing a tool loop', async () => {
+    // Anthropic 400s if the most-recent assistant tool_use turn is replayed
+    // without its thinking blocks while extended thinking is enabled. The
+    // native step loop must carry the captured thinkingBlocks into the
+    // assistant message it pushes before the next provider call.
+    hoisted.generateCompletion
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 8, completionTokens: 2, totalTokens: 10 },
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: null,
+              thinkingBlocks: [
+                { type: 'thinking', thinking: 'I should call the tool.', signature: 'sig-abc' },
+              ],
+              tool_calls: [
+                {
+                  id: 'tool-1',
+                  type: 'function',
+                  function: { name: 'open_profile', arguments: '{"profileId":"profile-1"}' },
+                },
+              ],
+            },
+            finishReason: 'tool_calls',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        modelId: 'gpt-4.1-mini',
+        usage: { promptTokens: 6, completionTokens: 4, totalTokens: 10 },
+        choices: [{ message: { role: 'assistant', content: 'All done.' }, finishReason: 'stop' }],
+      });
+
+    const result = await generateText({
+      model: 'openai:gpt-4.1-mini',
+      prompt: 'Load my profile.',
+      maxSteps: 2,
+      thinking: { budgetTokens: 4096 },
+      tools: [
+        {
+          name: 'open_profile',
+          description: 'Load a saved profile record by ID.',
+          inputSchema: {
+            type: 'object',
+            properties: { profileId: { type: 'string' } },
+            required: ['profileId'],
+          },
+        },
+      ],
+    });
+
+    expect(hoisted.generateCompletion).toHaveBeenCalledTimes(2);
+    const secondCallMessages = hoisted.generateCompletion.mock.calls[1]?.[1] as Array<{
+      role: string;
+      tool_calls?: unknown;
+      thinkingBlocks?: unknown;
+    }>;
+    const assistantToolTurn = secondCallMessages.find(
+      (m) => m.role === 'assistant' && m.tool_calls
+    );
+    expect(assistantToolTurn?.thinkingBlocks).toEqual([
+      { type: 'thinking', thinking: 'I should call the tool.', signature: 'sig-abc' },
+    ]);
+    expect(result.text).toBe('All done.');
+  });
+
   it('parses text tool calls once and passes a real execution context to external tools', async () => {
     const observedContexts: any[] = [];
 

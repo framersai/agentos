@@ -296,6 +296,13 @@ export interface GenerateTextOptions {
   temperature?: number;
   /** Hard cap on output tokens. Provider-dependent default applies when omitted. */
   maxTokens?: number;
+  /**
+   * Extended-thinking budget forwarded to thinking-capable models (Opus
+   * 4.7/4.8). When set, the provider emits reasoning blocks and floors
+   * `maxTokens` at `budgetTokens + 8192`. Omitted = thinking off (provider
+   * default behavior). Has no effect on models that do not support thinking.
+   */
+  thinking?: { budgetTokens: number };
   /** Override the API key instead of reading from environment variables. */
   apiKey?: string;
   /** Override the provider base URL (useful for local proxies or Ollama). */
@@ -1257,6 +1264,10 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
             const r = await provider.generateCompletion(resolved.modelId, msgs as any, {
               temperature: opts.temperature,
               maxTokens: opts.maxTokens,
+              // Forward the extended-thinking budget on the shim path too so
+              // thinking-capable models stay consistent across tool modes;
+              // the provider decides applicability. Omitted = thinking off.
+              ...(opts.thinking !== undefined ? { thinking: opts.thinking } : {}),
               // Forward per-call requestTimeout so the prompt-tool-calling shim
               // (toolMode:'prompt') honors the caller's timeout like the native
               // step loop already does. Without it, a stalled provider call on
@@ -1344,6 +1355,11 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
                 tools: toolSchemas,
                 temperature: opts.temperature,
                 maxTokens: opts.maxTokens,
+                // Forward the extended-thinking budget so thinking-capable
+                // models (Opus 4.7/4.8) emit reasoning blocks; the provider's
+                // resolveThinkingPayload decides applicability + floors
+                // maxTokens. Omitted callers keep the default (thinking off).
+                ...(opts.thinking !== undefined ? { thinking: opts.thinking } : {}),
                 // Forward caller toolChoice so orchestrators can force tool_use
                 // (e.g. ai-codegen); models narrate under tool_choice: 'auto'.
                 ...(opts.toolChoice !== undefined ? { toolChoice: opts.toolChoice } : {}),
@@ -1457,10 +1473,22 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         }
 
         if (toolCallsInChoice.length > 0) {
+          // Preserve the captured thinking blocks on the replayed assistant
+          // turn. With extended thinking enabled, Anthropic requires the
+          // most-recent assistant tool_use turn to carry its thinking blocks
+          // verbatim (signature intact) on the next request; dropping them
+          // 400s the continuation step. AnthropicProvider strips thinking from
+          // all earlier assistant turns at payload-build time, so carrying it
+          // here on every tool step is safe. Inert when thinking is off
+          // (no blocks present), keeping the non-thinking path byte-identical.
+          const stepThinkingBlocks = choice.message?.thinkingBlocks;
           messages.push({
             role: 'assistant',
             content: textContent || null,
             tool_calls: toolCallsInChoice,
+            ...(stepThinkingBlocks && stepThinkingBlocks.length > 0
+              ? { thinkingBlocks: stepThinkingBlocks }
+              : {}),
           } as any);
 
           for (const tc of toolCallsInChoice) {
