@@ -1,3 +1,7 @@
+## <small>0.9.49 (2026-06-08)</small>
+
+* feat(anthropic): pass extended-thinking budget through to reasoning-default models ([57e747290a6eca8c9e41b04e917bd5d4f4ddf252](https://github.com/framerslab/agentos/commit/57e747290a6eca8c9e41b04e917bd5d4f4ddf252))
+
 ## <small>0.9.48 (2026-06-06)</small>
 
 * fix(llm): clamp max_tokens to the model's output ceiling ([2adb5eb141e70064ab572a56e2d3bea529823a8a](https://github.com/framerslab/agentos/commit/2adb5eb141e70064ab572a56e2d3bea529823a8a))
