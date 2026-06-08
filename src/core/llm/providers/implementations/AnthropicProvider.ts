@@ -914,7 +914,22 @@ export class AnthropicProvider implements IProvider {
     }
 
     // --- Convert remaining messages to Anthropic format ---
-    const anthropicMessages = conversationMessages.map(msg => this.toAnthropicMessage(msg));
+    // Anthropic only requires the MOST RECENT assistant turn's thinking blocks
+    // to be replayed when continuing a tool-use loop; earlier turns' thinking is
+    // optional and ignored. Strip thinking from all but the last assistant
+    // message so a long tool loop's (potentially large) thinking blocks don't
+    // accumulate on the wire as conversation history grows.
+    let lastAssistantIdx = -1;
+    for (let i = 0; i < conversationMessages.length; i++) {
+      if (conversationMessages[i].role === 'assistant') lastAssistantIdx = i;
+    }
+    const anthropicMessages = conversationMessages.map((msg, i) =>
+      this.toAnthropicMessage(
+        msg.role === 'assistant' && i !== lastAssistantIdx && msg.thinkingBlocks
+          ? { ...msg, thinkingBlocks: undefined }
+          : msg,
+      ),
+    );
 
     const payload: Record<string, unknown> = {
       model: modelId,

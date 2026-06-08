@@ -463,6 +463,38 @@ describe('AnthropicProvider', () => {
       await provider.generateCompletion('claude-sonnet-4-6', [{ role: 'user', content: 'Hi' }], {});
       expect(fetchMock.mock.calls[0][1].headers['anthropic-beta']).toBeUndefined();
     });
+
+    it('strips thinking from earlier assistant turns, replaying only the last (bounded payload)', async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      await provider.generateCompletion(
+        'claude-opus-4-8',
+        [
+          { role: 'user', content: 'go' },
+          {
+            role: 'assistant',
+            content: null,
+            thinkingBlocks: [{ type: 'thinking', thinking: 'first', signature: 's1' }],
+            tool_calls: [{ id: 't1', type: 'function', function: { name: 'f', arguments: '{}' } }],
+          },
+          { role: 'tool', tool_call_id: 't1', content: 'r1' },
+          {
+            role: 'assistant',
+            content: null,
+            thinkingBlocks: [{ type: 'thinking', thinking: 'second', signature: 's2' }],
+            tool_calls: [{ id: 't2', type: 'function', function: { name: 'f', arguments: '{}' } }],
+          },
+          { role: 'tool', tool_call_id: 't2', content: 'r2' },
+        ],
+        {},
+      );
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      const assistantMsgs = body.messages.filter((m: any) => m.role === 'assistant');
+      // Earlier assistant turn: thinking stripped (Anthropic ignores it; keeps the wire bounded
+      // so large thinking blocks don't accumulate across a long tool loop).
+      expect(assistantMsgs[0].content.some((b: any) => b.type === 'thinking')).toBe(false);
+      // Most-recent assistant turn: thinking preserved (Anthropic requires it for continuation).
+      expect(assistantMsgs[1].content[0]).toEqual({ type: 'thinking', thinking: 'second', signature: 's2' });
+    });
   });
 
   // -------------------------------------------------------------------------
