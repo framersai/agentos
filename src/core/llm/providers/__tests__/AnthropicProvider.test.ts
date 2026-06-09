@@ -66,6 +66,95 @@ function createSseStream(events: string[]): ReadableStream<Uint8Array> {
   });
 }
 
+/** `data:` line for one SSE event object. */
+const d = (o: unknown) => `data: ${JSON.stringify(o)}`;
+
+/**
+ * Canonical SSE event sequence for a raw Messages response — the streamed
+ * equivalent of `makeAnthropicResponse()`, since generateCompletion rides
+ * the SSE transport by default.
+ */
+function sseEventsFromMessage(msg: ReturnType<typeof makeAnthropicResponse>): string[] {
+  const events: string[] = [
+    d({
+      type: 'message_start',
+      message: { ...msg, content: [], stop_reason: null },
+    }),
+  ];
+  const content = msg.content as Array<Record<string, unknown>>;
+  content.forEach((block, index) => {
+    if (block.type === 'text') {
+      events.push(d({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } }));
+      events.push(d({ type: 'content_block_delta', index, delta: { type: 'text_delta', text: block.text } }));
+    } else if (block.type === 'tool_use') {
+      events.push(d({
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'tool_use', id: block.id, name: block.name },
+      }));
+      events.push(d({
+        type: 'content_block_delta',
+        index,
+        delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.input ?? {}) },
+      }));
+    } else if (block.type === 'thinking') {
+      events.push(d({
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'thinking', thinking: '', signature: '' },
+      }));
+      events.push(d({ type: 'content_block_delta', index, delta: { type: 'thinking_delta', thinking: block.thinking } }));
+      events.push(d({ type: 'content_block_delta', index, delta: { type: 'signature_delta', signature: block.signature } }));
+    } else if (block.type === 'redacted_thinking') {
+      events.push(d({
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'redacted_thinking', data: block.data },
+      }));
+    }
+    events.push(d({ type: 'content_block_stop', index }));
+  });
+  const usage = msg.usage as { output_tokens: number };
+  events.push(d({
+    type: 'message_delta',
+    delta: { stop_reason: msg.stop_reason, stop_sequence: null },
+    usage: { output_tokens: usage.output_tokens },
+  }));
+  events.push(d({ type: 'message_stop' }));
+  return events;
+}
+
+/** Mock fetch Response whose body is a completed SSE stream of `msg`. */
+function mockSseResponse(msg: ReturnType<typeof makeAnthropicResponse>): Response {
+  return {
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    headers: new Headers(),
+    json: () => Promise.reject(new Error('SSE body, not JSON')),
+    body: createSseStream(sseEventsFromMessage(msg)),
+  } as unknown as Response;
+}
+
+/** Mock Response that emits `events` then stalls forever (never closes). */
+function stallingSseResponse(events: string[]): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (events.length) controller.enqueue(encoder.encode(events.join('\n\n') + '\n\n'));
+      // Deliberately never close — simulates a hung upstream connection.
+    },
+  });
+  return {
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    headers: new Headers(),
+    json: () => Promise.reject(new Error('SSE body, not JSON')),
+    body,
+  } as unknown as Response;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -249,7 +338,7 @@ describe('AnthropicProvider', () => {
 
   describe('system message handling', () => {
     it('extracts system messages to top-level system field (not a message role)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       const messages: ChatMessage[] = [
         { role: 'system', content: 'You are a helpful assistant.' },
@@ -271,7 +360,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('concatenates multiple system messages with double newlines', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       const messages: ChatMessage[] = [
         { role: 'system', content: 'Rule 1: Be helpful.' },
@@ -286,7 +375,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('omits system field when no system messages are present', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       const messages: ChatMessage[] = [
         { role: 'user', content: 'Hello' },
@@ -305,7 +394,7 @@ describe('AnthropicProvider', () => {
 
   describe('extended thinking', () => {
     it('sends adaptive thinking, keeps max_tokens, and drops top_p/temperature for opus-4-8', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -324,7 +413,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('omits the thinking block for a non-reasoning model even when a budget is passed', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-sonnet-4-6',
@@ -337,7 +426,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('omits the thinking block when no budget is requested', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -364,7 +453,7 @@ describe('AnthropicProvider', () => {
     };
 
     it("clamps a forced tool_choice ('required' → any) to 'auto' when thinking is enabled", async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -378,7 +467,7 @@ describe('AnthropicProvider', () => {
     });
 
     it("leaves a forced tool_choice as 'any' when thinking is NOT enabled", async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -392,7 +481,7 @@ describe('AnthropicProvider', () => {
     });
 
     it("leaves tool_choice 'auto' untouched when thinking is enabled", async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -413,7 +502,7 @@ describe('AnthropicProvider', () => {
   describe('thinking-block capture', () => {
     it('captures thinking blocks (with signature) onto the assistant message', async () => {
       fetchMock.mockResolvedValueOnce(
-        mockJsonResponse(
+        mockSseResponse(
           makeAnthropicResponse({
             content: [
               { type: 'thinking', thinking: 'Let me reason about this.', signature: 'sig-abc123' },
@@ -438,7 +527,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('omits thinkingBlocks when the response has none (non-thinking path unchanged)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       const res = await provider.generateCompletion(
         'claude-sonnet-4-6',
         [{ role: 'user', content: 'Hi' }],
@@ -454,7 +543,7 @@ describe('AnthropicProvider', () => {
 
   describe('thinking-block replay', () => {
     it('replays thinking blocks FIRST in the assistant turn, before text + tool_use', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
         'claude-opus-4-8',
@@ -485,7 +574,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('sets the interleaved-thinking beta header when replaying thinking blocks', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-8',
         [
@@ -505,7 +594,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('sets the beta header when extended thinking is enabled outbound', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-8',
         [{ role: 'user', content: 'Hi' }],
@@ -517,13 +606,13 @@ describe('AnthropicProvider', () => {
     });
 
     it('omits the beta header when no thinking is in play', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion('claude-sonnet-4-6', [{ role: 'user', content: 'Hi' }], {});
       expect(fetchMock.mock.calls[0][1].headers['anthropic-beta']).toBeUndefined();
     });
 
     it('strips thinking from earlier assistant turns, replaying only the last (bounded payload)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-8',
         [
@@ -561,7 +650,7 @@ describe('AnthropicProvider', () => {
 
   describe('max_tokens enforcement', () => {
     it('always includes max_tokens in the request payload (defaults to the model output ceiling)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       // Do NOT pass maxTokens in options
       await provider.generateCompletion('claude-sonnet-4-20250514', [
@@ -575,7 +664,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('respects caller-provided maxTokens', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion('claude-sonnet-4-20250514', [
         { role: 'user', content: 'Hi' },
@@ -592,7 +681,7 @@ describe('AnthropicProvider', () => {
 
   describe('temperature handling per model', () => {
     it('includes temperature in the payload for Claude Sonnet / Haiku / Opus <= 4.6', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-sonnet-4-6',
         [{ role: 'user', content: 'Hi' }],
@@ -603,7 +692,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('includes temperature for older Opus (claude-opus-4-6)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-6',
         [{ role: 'user', content: 'Hi' }],
@@ -617,7 +706,7 @@ describe('AnthropicProvider', () => {
       // Opus 4.7 deprecated temperature (reasoning-default). The Anthropic
       // API returns 400 "`temperature` is deprecated for this model" when
       // temperature is present, so the provider must silently drop it.
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-7',
         [{ role: 'user', content: 'Hi' }],
@@ -630,7 +719,7 @@ describe('AnthropicProvider', () => {
     it('OMITS temperature for claude-opus-4-7 with provider-qualified id variations', async () => {
       // Guards against a future change that keeps the major/minor but
       // tacks on a date suffix (e.g. claude-opus-4-7-20260501).
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-opus-4-7-20260501',
         [{ role: 'user', content: 'Hi' }],
@@ -641,7 +730,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('passes temperature unchanged when model is not a reasoning-default family', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
       await provider.generateCompletion(
         'claude-haiku-4-5-20251001',
         [{ role: 'user', content: 'Hi' }],
@@ -658,7 +747,7 @@ describe('AnthropicProvider', () => {
 
   describe('tool calling format', () => {
     it('converts OpenAI-style tool defs to Anthropic input_schema format', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         content: [{
           type: 'tool_use',
           id: 'toolu_123',
@@ -702,7 +791,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('maps tool_use response blocks to OpenAI-style tool_calls', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         content: [
           { type: 'text', text: 'Let me check the weather.' },
           {
@@ -741,7 +830,7 @@ describe('AnthropicProvider', () => {
 
   describe('stop reason mapping', () => {
     it('maps end_turn to "stop"', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         stop_reason: 'end_turn',
       })));
 
@@ -753,7 +842,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('maps tool_use to "tool_calls"', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         content: [{ type: 'tool_use', id: 'x', name: 'fn', input: {} }],
         stop_reason: 'tool_use',
       })));
@@ -766,7 +855,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('maps max_tokens to "length"', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         stop_reason: 'max_tokens',
       })));
 
@@ -778,7 +867,7 @@ describe('AnthropicProvider', () => {
     });
 
     it('maps stop_sequence to "stop"', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse({
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse({
         stop_reason: 'stop_sequence',
       })));
 
@@ -951,7 +1040,7 @@ describe('AnthropicProvider', () => {
 
   describe('authentication headers', () => {
     it('sends x-api-key header (not Authorization Bearer)', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion('claude-sonnet-4-20250514', [
         { role: 'user', content: 'Hi' },
@@ -1005,7 +1094,7 @@ describe('AnthropicProvider', () => {
 
   describe('tool result messages', () => {
     it('converts tool-role messages to user/tool_result blocks', async () => {
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       const messages: ChatMessage[] = [
         { role: 'user', content: 'Weather in SF?' },
@@ -1059,7 +1148,7 @@ describe('AnthropicProvider', () => {
       await p.initialize({ apiKey: 'key1,key2', maxRetries: 3 });
 
       fetchMock.mockResolvedValueOnce(rateLimitedResponse());
-      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 
       await p.generateCompletion(
         'claude-sonnet-4-20250514',
@@ -1074,6 +1163,215 @@ describe('AnthropicProvider', () => {
       // The retry must fail over to the OTHER key — the rate-limited key is
       // marked exhausted and skipped, not retried on the same throttled key.
       expect(secondKey).toBe('key2');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Streaming completion transport (default)
+  //
+  // generateCompletion rides the SSE path so parseSseStream's idle watchdog
+  // bounds mid-body stalls. A non-streaming POST cannot distinguish a hung
+  // connection from a slow generation, so a caller's generous requestTimeout
+  // (codegen passes 25 min) turned each hang into a 25-min silence.
+  // -------------------------------------------------------------------------
+
+  describe('streaming completion transport', () => {
+    it('streams by default: sends stream:true and maps the final message', async () => {
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
+
+      const result = await provider.generateCompletion(
+        'claude-sonnet-4-20250514',
+        [{ role: 'user', content: 'Hi' }],
+        {},
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.stream).toBe(true);
+      expect(result.choices[0].message.content).toBe('Hello from Anthropic!');
+      expect(result.choices[0].finishReason).toBe('stop');
+      expect(result.usage?.promptTokens).toBe(10);
+      expect(result.usage?.completionTokens).toBe(5);
+      expect(result.id).toBe('msg_test_123');
+    });
+
+    it('assembles tool_use input across input_json_delta fragments', async () => {
+      const events = [
+        d({ type: 'message_start', message: { ...makeAnthropicResponse(), content: [], stop_reason: null } }),
+        d({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_1', name: 'doThing' } }),
+        d({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"a":' } }),
+        d({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '1}' } }),
+        d({ type: 'content_block_stop', index: 0 }),
+        d({ type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage: { output_tokens: 7 } }),
+        d({ type: 'message_stop' }),
+      ];
+      fetchMock.mockResolvedValueOnce({
+        ok: true, status: 200, statusText: 'OK', headers: new Headers(),
+        json: () => Promise.reject(new Error('SSE body, not JSON')),
+        body: createSseStream(events),
+      } as unknown as Response);
+
+      const result = await provider.generateCompletion(
+        'claude-sonnet-4-20250514',
+        [{ role: 'user', content: 'Hi' }],
+        {},
+      );
+
+      expect(result.choices[0].finishReason).toBe('tool_calls');
+      const toolCalls = result.choices[0].message.tool_calls!;
+      expect(toolCalls).toHaveLength(1);
+      expect(toolCalls[0].function.name).toBe('doThing');
+      expect(JSON.parse(toolCalls[0].function.arguments)).toEqual({ a: 1 });
+    });
+
+    it('captures thinking blocks (with signature) on the streamed completion', async () => {
+      const msg = makeAnthropicResponse({
+        content: [
+          { type: 'thinking', thinking: 'Let me reason.', signature: 'sig-xyz' },
+          { type: 'text', text: 'Answer.' },
+        ],
+      });
+      fetchMock.mockResolvedValueOnce(mockSseResponse(msg));
+
+      const result = await provider.generateCompletion(
+        'claude-opus-4-8',
+        [{ role: 'user', content: 'Hi' }],
+        { thinking: { budgetTokens: 8000 } },
+      );
+
+      expect(result.choices[0].message.content).toBe('Answer.');
+      expect(result.choices[0].message.thinkingBlocks).toEqual([
+        { type: 'thinking', thinking: 'Let me reason.', signature: 'sig-xyz' },
+      ]);
+    });
+
+    it('surfaces forced structured-output tool input as JSON text content', async () => {
+      const msg = makeAnthropicResponse({
+        content: [{ type: 'tool_use', id: 'toolu_s', name: 'emit', input: { x: 2 } }],
+        stop_reason: 'tool_use',
+      });
+      fetchMock.mockResolvedValueOnce(mockSseResponse(msg));
+
+      const result = await provider.generateCompletion(
+        'claude-sonnet-4-20250514',
+        [{ role: 'user', content: 'Hi' }],
+        {
+          responseFormat: {
+            _agentosUseToolForStructuredOutput: true,
+            tool: { name: 'emit' },
+          } as never,
+        },
+      );
+
+      expect(result.choices[0].message.content).toBe('{"x":2}');
+    });
+
+    it('aborts a mid-body stall after streamIdleTimeoutMs instead of hanging', async () => {
+      const idleProvider = new AnthropicProvider();
+      await idleProvider.initialize({ apiKey: 'k', streamIdleTimeoutMs: 40 });
+      fetchMock.mockResolvedValueOnce(stallingSseResponse([
+        d({ type: 'message_start', message: { ...makeAnthropicResponse(), content: [], stop_reason: null } }),
+      ]));
+
+      await expect(
+        idleProvider.generateCompletion(
+          'claude-opus-4-8',
+          [{ role: 'user', content: 'Hi' }],
+          // The generous caller timeout must NOT extend the idle bound — that
+          // is the 25-min codegen stall this transport exists to prevent.
+          { requestTimeout: 1_500_000 },
+        ),
+      ).rejects.toThrow(/Stream idle/);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries after an idle stall when maxRetries allows and succeeds', async () => {
+      const retryProvider = new AnthropicProvider();
+      await retryProvider.initialize({ apiKey: 'k', maxRetries: 2, streamIdleTimeoutMs: 40 });
+      fetchMock
+        .mockResolvedValueOnce(stallingSseResponse([
+          d({ type: 'message_start', message: { ...makeAnthropicResponse(), content: [], stop_reason: null } }),
+        ]))
+        .mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
+
+      const result = await retryProvider.generateCompletion(
+        'claude-sonnet-4-20250514',
+        [{ role: 'user', content: 'Hi' }],
+        {},
+      );
+
+      expect(result.choices[0].message.content).toBe('Hello from Anthropic!');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    }, 10_000);
+
+    it('does not retry a non-retryable 4xx connection error', async () => {
+      const retryProvider = new AnthropicProvider();
+      await retryProvider.initialize({ apiKey: 'k', maxRetries: 3 });
+      fetchMock.mockResolvedValue(mockJsonResponse(
+        { type: 'error', error: { type: 'invalid_request_error', message: 'bad request' } },
+        400,
+      ));
+
+      await expect(
+        retryProvider.generateCompletion(
+          'claude-sonnet-4-20250514',
+          [{ role: 'user', content: 'Hi' }],
+          {},
+        ),
+      ).rejects.toThrow(/bad request/);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws on a stream that ends without message_delta (incomplete)', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true, status: 200, statusText: 'OK', headers: new Headers(),
+        json: () => Promise.reject(new Error('SSE body, not JSON')),
+        body: createSseStream([
+          d({ type: 'message_start', message: { ...makeAnthropicResponse(), content: [], stop_reason: null } }),
+        ]),
+      } as unknown as Response);
+
+      await expect(
+        provider.generateCompletion(
+          'claude-sonnet-4-20250514',
+          [{ role: 'user', content: 'Hi' }],
+          {},
+        ),
+      ).rejects.toThrow(/incomplete/i);
+    });
+
+    it('throws the API error from an SSE error event', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true, status: 200, statusText: 'OK', headers: new Headers(),
+        json: () => Promise.reject(new Error('SSE body, not JSON')),
+        body: createSseStream([
+          d({ type: 'message_start', message: { ...makeAnthropicResponse(), content: [], stop_reason: null } }),
+          d({ type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }),
+        ]),
+      } as unknown as Response);
+
+      await expect(
+        provider.generateCompletion(
+          'claude-sonnet-4-20250514',
+          [{ role: 'user', content: 'Hi' }],
+          {},
+        ),
+      ).rejects.toThrow(/Overloaded/);
+    });
+
+    it('falls back to the single-shot JSON transport when streamCompletions: false', async () => {
+      const legacyProvider = new AnthropicProvider();
+      await legacyProvider.initialize({ apiKey: 'k', streamCompletions: false });
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+
+      const result = await legacyProvider.generateCompletion(
+        'claude-sonnet-4-20250514',
+        [{ role: 'user', content: 'Hi' }],
+        {},
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.stream).toBe(false);
+      expect(result.choices[0].message.content).toBe('Hello from Anthropic!');
     });
   });
 });

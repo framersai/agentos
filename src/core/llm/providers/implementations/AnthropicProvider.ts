@@ -87,6 +87,18 @@ export interface AnthropicProviderConfig {
    */
   streamIdleTimeoutMs?: number;
   /**
+   * Transport for `generateCompletion`. When `true` (default), completions
+   * ride the SSE streaming path and accumulate server-side events into the
+   * same response shape — so `streamIdleTimeoutMs` bounds mid-body stalls.
+   * A non-streaming POST cannot distinguish a hung connection from a slow
+   * generation, which let a caller's generous `requestTimeout` (codegen
+   * passes 25 min) turn each hang into a 25-minute silence. Set `false` to
+   * restore the single-shot JSON transport (escape hatch for SSE-hostile
+   * proxies).
+   * @default true
+   */
+  streamCompletions?: boolean;
+  /**
    * Default max_tokens value when the caller does not specify one.
    * Anthropic requires max_tokens on every request.
    * @default 4096
@@ -485,14 +497,6 @@ export class AnthropicProvider implements IProvider {
   ): Promise<ModelCompletionResponse> {
     this.ensureInitialized();
 
-    const payload = this.buildRequestPayload(modelId, messages, options, false);
-    const apiResponse = await this.makeApiRequest<AnthropicMessagesResponse>(
-      '/v1/messages',
-      'POST',
-      payload,
-      options.requestTimeout,
-    );
-
     // Capture the structured-output tool name from the request options
     // so the response mapper can surface the matching tool_use block's
     // input as JSON-string content (uniform API across providers).
@@ -503,7 +507,261 @@ export class AnthropicProvider implements IProvider {
       ? sf.tool?.name
       : undefined;
 
+    // Escape hatch: single-shot JSON transport for SSE-hostile proxies.
+    if (this.config.streamCompletions === false) {
+      const payload = this.buildRequestPayload(modelId, messages, options, false);
+      const apiResponse = await this.makeApiRequest<AnthropicMessagesResponse>(
+        '/v1/messages',
+        'POST',
+        payload,
+        options.requestTimeout,
+      );
+      return this.mapResponseToCompletion(apiResponse, structuredOutputName);
+    }
+
+    // Default: ride the SSE path so parseSseStream's idle watchdog bounds
+    // mid-body stalls. A non-streaming POST cannot tell a hung connection
+    // from a slow generation, so a caller's generous requestTimeout
+    // (codegen passes 25 min) turned each hang into a 25-minute silence;
+    // streamed deltas keep flowing on a healthy call, so a quiet gap of
+    // streamIdleTimeoutMs means the connection is dead — fail fast and
+    // let the caller (or the retry loop below) recover in seconds.
+    const payload = this.buildRequestPayload(modelId, messages, options, true);
+    const apiResponse = await this.streamMessagesToResponse(payload, options.requestTimeout);
     return this.mapResponseToCompletion(apiResponse, structuredOutputName);
+  }
+
+  /**
+   * Runs a `/v1/messages` request over the SSE transport and accumulates the
+   * event stream into a complete {@link AnthropicMessagesResponse}, retrying
+   * retryable failures (idle stalls, 429s, 5xx, network errors) up to
+   * `config.maxRetries` attempts with exponential backoff.
+   *
+   * @param payload Request body (must include `stream: true`).
+   * @param requestTimeoutOverride Per-call override for the CONNECTION
+   *   timeout (headers phase only). The mid-body idle bound stays at
+   *   `streamIdleTimeoutMs` regardless — a generous total budget must not
+   *   extend how long a dead connection can sit silent.
+   * @private
+   */
+  private async streamMessagesToResponse(
+    payload: Record<string, unknown>,
+    requestTimeoutOverride?: number,
+  ): Promise<AnthropicMessagesResponse> {
+    let lastError: AnthropicProviderError = new AnthropicProviderError(
+      'Streaming completion failed after all retries.',
+      'MAX_RETRIES_REACHED',
+    );
+
+    const attempts = Math.max(1, this.config.maxRetries ?? 1);
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        const stream = await this.makeStreamRequest('/v1/messages', payload, requestTimeoutOverride);
+        return await this.accumulateMessagesStream(stream);
+      } catch (error: unknown) {
+        lastError =
+          error instanceof AnthropicProviderError
+            ? error
+            : new AnthropicProviderError(
+                error instanceof Error ? error.message : 'Streaming completion failed.',
+                'STREAM_PROCESSING_ERROR',
+              );
+        if (!this.isRetryableStreamError(lastError) || attempt === attempts - 1) {
+          throw lastError;
+        }
+        await new Promise(resolve => setTimeout(resolve, (2 ** attempt) * 1000));
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Whether a streaming-completion failure is worth another attempt.
+   * Client errors (4xx except 429) and their Anthropic error types are
+   * terminal — the request itself is wrong. Everything else (idle stalls,
+   * truncated streams, 429s, 5xx, network failures) is transport-level
+   * and may succeed on retry.
+   * @private
+   */
+  private isRetryableStreamError(error: AnthropicProviderError): boolean {
+    if (
+      typeof error.httpStatus === 'number' &&
+      error.httpStatus >= 400 &&
+      error.httpStatus < 500 &&
+      error.httpStatus !== 429
+    ) {
+      return false;
+    }
+    const terminalTypes = new Set([
+      'invalid_request_error',
+      'authentication_error',
+      'permission_error',
+      'not_found_error',
+    ]);
+    if (error.anthropicErrorType && terminalTypes.has(error.anthropicErrorType)) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Consumes a Messages SSE stream and reassembles the raw response object,
+   * mirroring the event handling in {@link generateCompletionStream} but
+   * producing the non-streaming {@link AnthropicMessagesResponse} shape so
+   * {@link mapResponseToCompletion} stays the single mapping path
+   * (structured output, stop reasons, cost, thinking blocks).
+   *
+   * @throws {AnthropicProviderError} `STREAM_ERROR_EVENT` on an SSE error
+   *   event, `STREAM_INCOMPLETE` when the stream ends before `message_delta`
+   *   or a tool_use input JSON is truncated, plus whatever
+   *   {@link parseSseStream} throws (`STREAM_IDLE_TIMEOUT`, parse errors).
+   * @private
+   */
+  private async accumulateMessagesStream(
+    stream: ReadableStream<Uint8Array>,
+  ): Promise<AnthropicMessagesResponse> {
+    type AccumBlock = {
+      type: 'text' | 'tool_use' | 'thinking' | 'redacted_thinking';
+      text?: string;
+      id?: string;
+      name?: string;
+      argsJson?: string;
+      thinking?: string;
+      signature?: string;
+      data?: string;
+    };
+
+    let id = `anthropic-stream-${Date.now()}`;
+    let model = '';
+    let stopReason: AnthropicMessagesResponse['stop_reason'] = null;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let cacheCreationTokens: number | undefined;
+    let cacheReadTokens: number | undefined;
+    let sawMessageDelta = false;
+    const blocks = new Map<number, AccumBlock>();
+
+    for await (const rawEvent of this.parseSseStream(stream)) {
+      let event: AnthropicStreamEvent;
+      try {
+        event = JSON.parse(rawEvent) as AnthropicStreamEvent;
+      } catch {
+        console.warn('AnthropicProvider: Could not parse SSE event JSON:', rawEvent);
+        continue;
+      }
+
+      switch (event.type) {
+        case 'message_start': {
+          id = event.message.id ?? id;
+          model = event.message.model ?? model;
+          inputTokens = event.message.usage?.input_tokens ?? 0;
+          cacheCreationTokens = event.message.usage?.cache_creation_input_tokens;
+          cacheReadTokens = event.message.usage?.cache_read_input_tokens;
+          break;
+        }
+        case 'content_block_start': {
+          const cb = event.content_block;
+          if (cb.type === 'text') {
+            blocks.set(event.index, { type: 'text', text: cb.text ?? '' });
+          } else if (cb.type === 'tool_use') {
+            blocks.set(event.index, {
+              type: 'tool_use',
+              id: cb.id ?? `call_${Date.now()}_${event.index}`,
+              name: cb.name ?? 'unknown',
+              argsJson: '',
+            });
+          } else if (cb.type === 'thinking') {
+            blocks.set(event.index, {
+              type: 'thinking',
+              thinking: cb.thinking ?? '',
+              signature: cb.signature ?? '',
+            });
+          } else if (cb.type === 'redacted_thinking') {
+            blocks.set(event.index, { type: 'redacted_thinking', data: cb.data ?? '' });
+          }
+          break;
+        }
+        case 'content_block_delta': {
+          const block = blocks.get(event.index);
+          if (!block) break;
+          if (event.delta.type === 'text_delta' && event.delta.text) {
+            block.text = (block.text ?? '') + event.delta.text;
+          } else if (event.delta.type === 'input_json_delta' && event.delta.partial_json) {
+            block.argsJson = (block.argsJson ?? '') + event.delta.partial_json;
+          } else if (event.delta.type === 'thinking_delta' && typeof event.delta.thinking === 'string') {
+            block.thinking = (block.thinking ?? '') + event.delta.thinking;
+          } else if (event.delta.type === 'signature_delta' && typeof event.delta.signature === 'string') {
+            block.signature = (block.signature ?? '') + event.delta.signature;
+          }
+          break;
+        }
+        case 'message_delta': {
+          sawMessageDelta = true;
+          stopReason = (event.delta.stop_reason ?? null) as AnthropicMessagesResponse['stop_reason'];
+          // Anthropic reports the cumulative output total here — latest wins.
+          outputTokens = event.usage?.output_tokens ?? outputTokens;
+          break;
+        }
+        case 'error': {
+          throw new AnthropicProviderError(
+            event.error.message,
+            'STREAM_ERROR_EVENT',
+            undefined,
+            event.error.type,
+          );
+        }
+        // 'content_block_stop', 'message_stop', 'ping' — no action needed
+        default:
+          break;
+      }
+    }
+
+    if (!sawMessageDelta) {
+      throw new AnthropicProviderError(
+        'Stream ended before message_delta — response incomplete (connection dropped mid-message).',
+        'STREAM_INCOMPLETE',
+      );
+    }
+
+    const content: AnthropicContentBlock[] = Array.from(blocks.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, block]) => {
+        if (block.type === 'tool_use') {
+          let input: Record<string, unknown>;
+          try {
+            input = block.argsJson ? (JSON.parse(block.argsJson) as Record<string, unknown>) : {};
+          } catch {
+            throw new AnthropicProviderError(
+              `Tool input JSON for "${block.name}" truncated mid-stream — response incomplete.`,
+              'STREAM_INCOMPLETE',
+            );
+          }
+          return { type: 'tool_use', id: block.id, name: block.name, input };
+        }
+        if (block.type === 'thinking') {
+          return { type: 'thinking', thinking: block.thinking ?? '', signature: block.signature ?? '' };
+        }
+        if (block.type === 'redacted_thinking') {
+          return { type: 'redacted_thinking', data: block.data ?? '' };
+        }
+        return { type: 'text', text: block.text ?? '' };
+      });
+
+    return {
+      id,
+      type: 'message',
+      role: 'assistant',
+      content,
+      model,
+      stop_reason: stopReason,
+      stop_sequence: null,
+      usage: {
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        ...(cacheCreationTokens !== undefined && { cache_creation_input_tokens: cacheCreationTokens }),
+        ...(cacheReadTokens !== undefined && { cache_read_input_tokens: cacheReadTokens }),
+      },
+    };
   }
 
   /**
@@ -1600,21 +1858,52 @@ export class AnthropicProvider implements IProvider {
   private async makeStreamRequest(
     endpoint: string,
     body: Record<string, unknown>,
+    requestTimeoutOverride?: number,
   ): Promise<ReadableStream<Uint8Array>> {
     const url = `${this.config.baseURL}${endpoint}`;
     const apiKey = this.nextApiKey();
     const headers = this.buildHeaders(apiKey);
 
+    // Bounds the CONNECTION phase only (request + response headers) — it is
+    // cleared the moment headers arrive. Mid-body stalls are the idle
+    // watchdog's job (streamIdleTimeoutMs in parseSseStream), so a caller's
+    // generous per-call override here cannot extend how long a dead
+    // connection sits silent once streaming has begun.
+    const connectionTimeout =
+      typeof requestTimeoutOverride === 'number' && requestTimeoutOverride > 0
+        ? requestTimeoutOverride
+        : this.config.requestTimeout;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.config.requestTimeout);
+    const timeoutId = setTimeout(() => controller.abort(), connectionTimeout);
 
     try {
-      const response = await fetch(url, {
+      // Hard JS timeout race over the abort-signal fetch: undici can leave a
+      // keep-alive "zombie" socket where the AbortController fires but the
+      // fetch promise never settles. Same guard as makeApiRequest — the race
+      // guarantees the await ends even when the signal is ignored.
+      const fetchPromise = fetch(url, {
         method: 'POST',
         headers: { ...headers, ...this.thinkingBetaHeaders(body), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
+      let hardTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const hardTimeout = new Promise<never>((_, reject) => {
+        hardTimeoutId = setTimeout(() => {
+          reject(
+            new AnthropicProviderError(
+              `Hard JS timeout after ${connectionTimeout! + 500}ms (includes 500ms buffer over abort-signal timeout — undici keep-alive zombie).`,
+              'STREAM_CONNECTION_FAILED',
+            ),
+          );
+        }, connectionTimeout! + 500);
+      });
+      let response: Response;
+      try {
+        response = await Promise.race([fetchPromise, hardTimeout]);
+      } finally {
+        if (hardTimeoutId) clearTimeout(hardTimeoutId);
+      }
       clearTimeout(timeoutId);
 
       if (!response.ok) {
