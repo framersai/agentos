@@ -349,6 +349,62 @@ describe('AnthropicProvider', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Thinking + forced tool_choice — Anthropic rejects the combination, so the
+  // provider clamps a forced choice to 'auto' (the supported way to interleave
+  // thinking with tool use) instead of letting the request 400.
+  // -------------------------------------------------------------------------
+
+  describe('thinking + forced tool_choice', () => {
+    const aTool = {
+      name: 'doThing',
+      description: 'Do a thing.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    };
+
+    it("clamps a forced tool_choice ('required' → any) to 'auto' when thinking is enabled", async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+
+      await provider.generateCompletion(
+        'claude-opus-4-8',
+        [{ role: 'user', content: 'build it' }],
+        { thinking: { budgetTokens: 8000 }, toolChoice: 'required', tools: [aTool], maxTokens: 16000 },
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.thinking).toBeDefined();
+      expect(requestBody.tool_choice).toEqual({ type: 'auto' });
+    });
+
+    it("leaves a forced tool_choice as 'any' when thinking is NOT enabled", async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+
+      await provider.generateCompletion(
+        'claude-opus-4-8',
+        [{ role: 'user', content: 'build it' }],
+        { toolChoice: 'required', tools: [aTool] },
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.thinking).toBeUndefined();
+      expect(requestBody.tool_choice).toEqual({ type: 'any' });
+    });
+
+    it("leaves tool_choice 'auto' untouched when thinking is enabled", async () => {
+      fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
+
+      await provider.generateCompletion(
+        'claude-opus-4-8',
+        [{ role: 'user', content: 'build it' }],
+        { thinking: { budgetTokens: 8000 }, toolChoice: 'auto', tools: [aTool], maxTokens: 16000 },
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.thinking).toBeDefined();
+      expect(requestBody.tool_choice).toEqual({ type: 'auto' });
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Thinking-block capture (B1) — round-trip substrate for the agent loop
   // -------------------------------------------------------------------------
 
