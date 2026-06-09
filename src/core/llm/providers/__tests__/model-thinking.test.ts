@@ -24,27 +24,23 @@ describe('resolveThinkingPayload', () => {
     expect(resolveThinkingPayload('claude-sonnet-4-6', { budgetTokens: 8000 }, 4000)).toBeNull();
   });
 
-  it('enables thinking and floors max_tokens to budget + 8192', () => {
+  it('emits the adaptive shape for opus-4-8 — enabled/budget_tokens is rejected by the API', () => {
+    // Opus 4.7/4.8 removed `thinking: {type:'enabled', budget_tokens}` (400:
+    // '"thinking.type.enabled" is not supported for this model'). Adaptive is
+    // the only on-mode; the caller's budgetTokens is just the on-switch.
     const r = resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 8000 }, 4000);
     expect(r).not.toBeNull();
-    expect(r!.thinking).toEqual({ type: 'enabled', budget_tokens: 8000 });
-    // Anthropic requires max_tokens > budget_tokens; floor leaves answer room.
-    expect(r!.maxTokens).toBe(8000 + 8192);
+    expect(r!.thinking).toEqual({ type: 'adaptive' });
+    expect(r!.thinking).not.toHaveProperty('budget_tokens');
   });
 
-  it('preserves a caller max_tokens already above the floor', () => {
-    const r = resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 8000 }, 32000);
-    expect(r!.maxTokens).toBe(32000);
+  it('leaves max_tokens untouched — adaptive has no budget to floor against', () => {
+    expect(resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 8000 }, 4000)!.maxTokens).toBe(4000);
+    expect(resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 8000 }, 32000)!.maxTokens).toBe(32000);
   });
 
-  it('clamps a sub-minimum budget up to Anthropic\'s 1024-token floor', () => {
-    const r = resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 200 }, 0);
-    expect(r!.thinking.budget_tokens).toBe(1024);
-    expect(r!.maxTokens).toBe(1024 + 8192);
-  });
-
-  it('floors a fractional budget to an integer token count', () => {
-    const r = resolveThinkingPayload('claude-opus-4-8', { budgetTokens: 8000.7 }, 0);
-    expect(r!.thinking.budget_tokens).toBe(8000);
+  it('emits adaptive for dated variants and opus-4-7 too', () => {
+    expect(resolveThinkingPayload('claude-opus-4-7', { budgetTokens: 1 }, 16000)!.thinking).toEqual({ type: 'adaptive' });
+    expect(resolveThinkingPayload('claude-opus-4-8-20260501', { budgetTokens: 200 }, 16000)!.thinking).toEqual({ type: 'adaptive' });
   });
 });

@@ -304,7 +304,7 @@ describe('AnthropicProvider', () => {
   // -------------------------------------------------------------------------
 
   describe('extended thinking', () => {
-    it('sends a thinking block, raises max_tokens, and drops top_p/temperature for opus-4-8', async () => {
+    it('sends adaptive thinking, keeps max_tokens, and drops top_p/temperature for opus-4-8', async () => {
       fetchMock.mockResolvedValueOnce(mockJsonResponse(makeAnthropicResponse()));
 
       await provider.generateCompletion(
@@ -314,9 +314,11 @@ describe('AnthropicProvider', () => {
       );
 
       const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-      expect(requestBody.thinking).toEqual({ type: 'enabled', budget_tokens: 8000 });
-      expect(requestBody.max_tokens).toBe(8000 + 8192);
-      // Extended thinking is incompatible with sampling controls — both dropped.
+      // Opus 4.7/4.8 reject {type:'enabled', budget_tokens} — adaptive is the
+      // only on-mode, and there is no budget for max_tokens to clear.
+      expect(requestBody.thinking).toEqual({ type: 'adaptive' });
+      expect(requestBody.max_tokens).toBe(4000);
+      // Sampling controls are rejected alongside on this family — both dropped.
       expect(requestBody.top_p).toBeUndefined();
       expect(requestBody.temperature).toBeUndefined();
     });

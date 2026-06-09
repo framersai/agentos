@@ -1,13 +1,17 @@
 /**
- * @fileoverview Extended-thinking (reasoning budget) helpers for the
- * Anthropic reasoning-default Claude models.
+ * @fileoverview Extended-thinking helpers for the Anthropic
+ * reasoning-default Claude models.
  *
- * The Opus 4.7 / 4.8 family reasons by default and accepts an explicit
- * `thinking: { type: 'enabled', budget_tokens }` block on the Messages
- * API to control how many tokens the model may spend reasoning before it
- * answers. {@link AnthropicProvider} sends this block through
- * {@link resolveThinkingPayload} when a caller passes a thinking budget
- * AND the model supports it.
+ * The Opus 4.7 / 4.8 family reasons by default and accepts ONLY the
+ * adaptive thinking form on the Messages API: `thinking: { type:
+ * 'adaptive' }`. The older manual form `thinking: { type: 'enabled',
+ * budget_tokens }` is removed on this family and returns a 400
+ * ('"thinking.type.enabled" is not supported for this model'). Depth is
+ * controlled by `output_config.effort`, not a token budget, so the
+ * caller-facing `{ budgetTokens }` option acts as the on-switch and the
+ * number itself is not sent. {@link AnthropicProvider} sends the block
+ * through {@link resolveThinkingPayload} when a caller passes a thinking
+ * budget AND the model supports it.
  *
  * This is the thinking-capability sibling of `modelSupportsTemperature`
  * in AnthropicProvider.ts — the same reasoning-default family that
@@ -35,7 +39,7 @@ export function modelSupportsThinking(modelId: string): boolean {
 
 /** The resolved extended-thinking payload plus the max_tokens to send. */
 export interface ResolvedThinkingPayload {
-  thinking: { type: 'enabled'; budget_tokens: number };
+  thinking: { type: 'adaptive' };
   maxTokens: number;
 }
 
@@ -43,11 +47,11 @@ export interface ResolvedThinkingPayload {
  * Compute the Anthropic `thinking` block plus the `max_tokens` value to
  * send for an extended-thinking request.
  *
- * Anthropic requires `max_tokens` to exceed `budget_tokens` (the model
- * needs room to answer after it finishes reasoning), so the output
- * budget is floored at `budget + 8192`. A caller `maxTokens` already
- * above that floor is preserved. The thinking budget itself is clamped
- * to Anthropic's documented 1024-token minimum and floored to an integer.
+ * Emits the adaptive form — the only thinking shape the gated Opus
+ * 4.7/4.8 family accepts. Adaptive thinking carries no token budget, so
+ * the caller's `budgetTokens` is treated purely as the on-switch
+ * (any positive value enables thinking) and `max_tokens` passes through
+ * unchanged — there is no budget for it to clear.
  *
  * Returns `null` when no budget is requested or the model can't think,
  * so the caller leaves the request untouched (no thinking block, no
@@ -63,7 +67,5 @@ export function resolveThinkingPayload(
   requestedMaxTokens: number | undefined,
 ): ResolvedThinkingPayload | null {
   if (!thinking || !modelSupportsThinking(modelId)) return null;
-  const budget = Math.max(1024, Math.floor(thinking.budgetTokens));
-  const maxTokens = Math.max(requestedMaxTokens ?? 0, budget + 8192);
-  return { thinking: { type: 'enabled', budget_tokens: budget }, maxTokens };
+  return { thinking: { type: 'adaptive' }, maxTokens: requestedMaxTokens ?? 0 };
 }

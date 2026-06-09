@@ -963,11 +963,11 @@ export class AnthropicProvider implements IProvider {
 
     // --- Extended thinking (reasoning-default Claude models) ---
     // When a caller passes a thinking budget and the model supports it
-    // (Opus 4.7/4.8), send the `thinking` block and raise max_tokens
-    // above the budget (Anthropic requires max_tokens > budget_tokens).
-    // Extended thinking is incompatible with temperature/top_p, so drop
-    // both. resolveThinkingPayload returns null for non-thinking models
-    // or when no budget is set, leaving the request untouched.
+    // (Opus 4.7/4.8), send the adaptive `thinking` block — the only form
+    // this family accepts ({type:'enabled', budget_tokens} returns 400).
+    // The family also rejects temperature/top_p, so drop both.
+    // resolveThinkingPayload returns null for non-thinking models or
+    // when no budget is set, leaving the request untouched.
     const thinkingResolved = resolveThinkingPayload(
       modelId,
       options.thinking,
