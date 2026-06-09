@@ -1,3 +1,7 @@
+## <small>0.9.55 (2026-06-09)</small>
+
+* fix(anthropic): send adaptive thinking for opus 4.7/4.8 ([ebf8aa6786390977adcd21d2880eabed31b2cc58](https://github.com/framerslab/agentos/commit/ebf8aa6786390977adcd21d2880eabed31b2cc58))
+
 ## <small>0.9.54 (2026-06-09)</small>
 
 * Merge branch 'master' of https://github.com/framerslab/agentos ([41ae7af7757c21543ba5ce790cc26c97da49f56d](https://github.com/framerslab/agentos/commit/41ae7af7757c21543ba5ce790cc26c97da49f56d))
