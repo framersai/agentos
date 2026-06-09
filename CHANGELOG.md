@@ -1,3 +1,9 @@
+## <small>0.9.56 (2026-06-09)</small>
+
+* fix(anthropic): stream completions so the idle watchdog bounds mid-body stalls ([67e6de047d93c6ef6396a939090cbd72d3e5534a](https://github.com/framerslab/agentos/commit/67e6de047d93c6ef6396a939090cbd72d3e5534a))
+* Merge branch 'master' of https://github.com/framerslab/agentos ([2f79c312b1b0b5d78dfe912176a8bb78b7c79bb8](https://github.com/framerslab/agentos/commit/2f79c312b1b0b5d78dfe912176a8bb78b7c79bb8))
+* docs: align thinking option docs with adaptive form ([a9cf0bc383fdab1e287584a3301258ef20220f90](https://github.com/framerslab/agentos/commit/a9cf0bc383fdab1e287584a3301258ef20220f90))
+
 ## <small>0.9.55 (2026-06-09)</small>
 
 * fix(anthropic): send adaptive thinking for opus 4.7/4.8 ([ebf8aa6786390977adcd21d2880eabed31b2cc58](https://github.com/framerslab/agentos/commit/ebf8aa6786390977adcd21d2880eabed31b2cc58))
