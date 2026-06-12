@@ -1,3 +1,8 @@
+## <small>0.9.59 (2026-06-12)</small>
+
+* test(anthropic): import the vitest lifecycle hooks ([d869c81e21238ab11c990ca09a1c71c8a8a3aea2](https://github.com/framerslab/agentos/commit/d869c81e21238ab11c990ca09a1c71c8a8a3aea2))
+* feat(anthropic): automatic prompt caching on every messages request ([00f99de8e2d31adebacd49913342eb36c46955a8](https://github.com/framerslab/agentos/commit/00f99de8e2d31adebacd49913342eb36c46955a8))
+
 ## <small>0.9.58 (2026-06-12)</small>
 
 * fix(anthropic): adapt structured output and tool_choice to model capability ([78a28d2e5cb93a1d8ab899641fcc408594ba6bbe](https://github.com/framerslab/agentos/commit/78a28d2e5cb93a1d8ab899641fcc408594ba6bbe))
