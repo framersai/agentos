@@ -20,6 +20,7 @@ import { lowerZodToJsonSchema } from '../orchestration/compiler/SchemaLowering.j
 import { estimateMaxTokensForZodSchema } from './runtime/schemaTokenEstimate.js';
 import { canUseStrictJsonSchema, buildOpenAIJsonSchemaResponseFormat } from './runtime/openaiResponseFormat.js';
 import { buildResponseFormat } from '../core/llm/providers/structuredOutputFormat.js';
+import { modelSupportsForcedToolChoice } from '../core/llm/providers/model-forced-tool-choice.js';
 
 /**
  * Detect whether a Zod schema's outer type is `ZodArray`. We support
@@ -474,20 +475,35 @@ export async function generateObject<T extends ZodType>(
   // lack native structured output (OpenRouter, etc.) fall back to the
   // looser `json_object` mode, which suppresses markdown fences but
   // doesn't enforce the schema.
-  const { providerId } = resolveModelOption(opts, 'text');
+  const { providerId, modelId } = resolveModelOption(opts, 'text');
   const useStrictJsonSchema = providerId === 'openai' && canUseStrictJsonSchema(jsonSchema);
   const supportsJsonObjectMode = JSON_MODE_PROVIDERS.has(providerId);
   let responseFormat: Record<string, unknown> | undefined;
   if (useStrictJsonSchema) {
     responseFormat = buildOpenAIJsonSchemaResponseFormat(jsonSchema, effectiveSchemaName);
-  } else if (providerId === 'anthropic' || providerId === 'gemini' || providerId === 'gemini-cli') {
-    // Route through the provider-specific structured-output helper.
-    // Anthropic gets forced tool_use (single tool with input_schema +
-    // tool_choice: { type: 'tool', name }), Gemini gets responseSchema.
-    // Pre-2026-05-28 these providers fell through to prompt-only
-    // enforcement; complex Zod schemas with .refine() invariants failed
-    // structured output ~100% of the time even with retries because the
-    // model wasn't actually constrained.
+  } else if (providerId === 'anthropic') {
+    // Anthropic structured output is a FORCED tool_use (single tool with
+    // input_schema + tool_choice: { type: 'tool', name }) — the gold-standard
+    // reliability tier. But Claude Fable rejects a forced tool_choice at the
+    // API level ("tool_choice forces tool use is not compatible with this
+    // model"), so routing Fable through the forced tool 400s every call.
+    // Detect that and leave responseFormat undefined: the schema already
+    // rides in the system prompt (buildSchemaSystemPrompt above), and the
+    // result text is extractJson + safeParse'd in the retry loop below, so
+    // structured output gracefully degrades to the prompt-only JSON path on
+    // Fable instead of hard-failing. Sonnet / Opus / Haiku keep the forced
+    // tool. (Pre-2026-05-28 every provider fell through to prompt-only and
+    // complex .refine() schemas failed ~100% even with retries; the forced
+    // tool is still preferred wherever the model accepts it.)
+    if (modelSupportsForcedToolChoice(modelId)) {
+      responseFormat = buildResponseFormat({
+        provider: providerId,
+        schema: effectiveSchema,
+        schemaName: effectiveSchemaName ?? 'response',
+      });
+    }
+  } else if (providerId === 'gemini' || providerId === 'gemini-cli') {
+    // Gemini gets native responseSchema via the provider-specific helper.
     responseFormat = buildResponseFormat({
       provider: providerId,
       schema: effectiveSchema,

@@ -19,7 +19,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 
-import { AnthropicProvider } from '../implementations/AnthropicProvider';
+import {
+  AnthropicProvider,
+  modelSupportsForcedToolChoice,
+} from '../implementations/AnthropicProvider';
 import type { ChatMessage } from '../IProvider';
 
 // ---------------------------------------------------------------------------
@@ -521,6 +524,52 @@ describe('AnthropicProvider', () => {
       const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(requestBody.thinking).toBeDefined();
       expect(requestBody.tool_choice).toEqual({ type: 'auto' });
+    });
+  });
+
+  // Fable rejects a forced tool_choice at the API level ("tool_choice forces
+  // tool use is not compatible with this model") — even with thinking off. The
+  // provider clamps any forced choice to 'auto' for Fable so no caller has to
+  // remember the quirk, mirroring the thinking-clamp above.
+  describe('forced tool_choice on a model that rejects it (Fable)', () => {
+    const aTool = {
+      name: 'doThing',
+      description: 'Do a thing.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    };
+
+    it('modelSupportsForcedToolChoice is false for Fable, true for Sonnet/Opus', () => {
+      expect(modelSupportsForcedToolChoice('claude-fable-5')).toBe(false);
+      expect(modelSupportsForcedToolChoice('claude-fable-5-20260601')).toBe(false);
+      expect(modelSupportsForcedToolChoice('claude-sonnet-4-6')).toBe(true);
+      expect(modelSupportsForcedToolChoice('claude-opus-4-8')).toBe(true);
+    });
+
+    it("clamps a forced tool_choice ('required') to 'auto' for Fable even without thinking", async () => {
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
+
+      await provider.generateCompletion(
+        'claude-fable-5',
+        [{ role: 'user', content: 'build it' }],
+        { toolChoice: 'required', tools: [aTool], maxTokens: 16000 },
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.thinking).toBeUndefined();
+      expect(requestBody.tool_choice).toEqual({ type: 'auto' });
+    });
+
+    it("leaves a forced tool_choice as 'any' for Sonnet (non-Fable unaffected)", async () => {
+      fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
+
+      await provider.generateCompletion(
+        'claude-sonnet-4-6',
+        [{ role: 'user', content: 'build it' }],
+        { toolChoice: 'required', tools: [aTool] },
+      );
+
+      const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(requestBody.tool_choice).toEqual({ type: 'any' });
     });
   });
 

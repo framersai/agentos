@@ -482,6 +482,37 @@ describe('generateObject', () => {
       });
     });
 
+    it('routes Fable to the prompt-JSON path (no forced tool_use) since Fable rejects forced tool_choice', async () => {
+      // Claude Fable rejects a forced tool_choice at the API level
+      // ("tool_choice forces tool use is not compatible with this model").
+      // generateObject must detect that and fall through to the prompt-only
+      // JSON path (schema already lives in the system prompt; the result text
+      // is extractJson + safeParse'd in the retry loop) instead of sending a
+      // forced tool the model 400s on.
+      const { resolveModelOption } = await import('../../model.js');
+      vi.mocked(resolveModelOption).mockReturnValueOnce({
+        providerId: 'anthropic',
+        modelId: 'claude-fable-5',
+      });
+      hoisted.generateCompletion.mockResolvedValueOnce(
+        mockResponse('{"name": "F", "age": 5}'),
+      );
+
+      const { object } = await generateObject({
+        provider: 'anthropic',
+        model: 'claude-fable-5',
+        schema: personSchema,
+        schemaName: 'PersonInfo',
+        prompt: 'Extract',
+      });
+
+      // No forced tool payload — falls through to prompt-only JSON.
+      const args = hoisted.generateCompletion.mock.calls[0][2];
+      expect(args.responseFormat).toBeUndefined();
+      // The prompt-JSON path still produces a validated object.
+      expect(object).toEqual({ name: 'F', age: 5 });
+    });
+
     it('forwards Gemini responseSchema payload to provider for gemini models', async () => {
       const { resolveModelOption } = await import('../../model.js');
       vi.mocked(resolveModelOption).mockReturnValueOnce({

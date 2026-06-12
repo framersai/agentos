@@ -35,6 +35,13 @@ import {
 import { AnthropicProviderError } from '../errors/AnthropicProviderError';
 import { ApiKeyPool } from '../../../providers/ApiKeyPool.js';
 import { resolveThinkingPayload } from '../model-thinking.js';
+import { modelSupportsForcedToolChoice } from '../model-forced-tool-choice.js';
+
+// Re-export so callers that already reach for Anthropic model-capability
+// predicates (modelSupportsTemperature lives here too) find this one next to
+// it, even though its source of truth is the pure model-forced-tool-choice
+// module.
+export { modelSupportsForcedToolChoice };
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -1299,26 +1306,35 @@ export class AnthropicProvider implements IProvider {
       payload.tool_choice = { type: 'tool', name: sf.tool.name };
     }
 
-    // --- Thinking + forced tool_choice reconciliation ---
-    // Anthropic rejects extended thinking together with a FORCED tool_choice
-    // ({type:'any'} or {type:'tool'}) — "Thinking may not be enabled when
-    // tool_choice forces tool use." Thinking + {type:'auto'} IS allowed: the
-    // model interleaves reasoning with tool calls. So when thinking is active
-    // and the resolved tool_choice forces a tool, clamp it to 'auto' (the only
-    // supported way to combine the two) rather than letting the request 400.
-    // The model still chooses tools on 'auto' — strongest with prescriptive
-    // tool descriptions — but forced tool use is no longer guaranteed. Catches
-    // both the convertToolChoice path and the structured-output forced tool.
-    if (payload.thinking) {
+    // --- Forced tool_choice reconciliation ---
+    // A FORCED tool_choice ({type:'any'} or {type:'tool'}) is incompatible with
+    // two situations, and Anthropic 400s on either:
+    //   (1) extended thinking is active — "Thinking may not be enabled when
+    //       tool_choice forces tool use." Thinking + {type:'auto'} IS allowed.
+    //   (2) the model rejects forced tool use outright — Claude Fable:
+    //       "tool_choice forces tool use is not compatible with this model."
+    // In both cases clamp to 'auto' (the only supported form) rather than
+    // letting the request 400. The model still chooses tools on 'auto' —
+    // strongest with prescriptive tool descriptions — but forced tool use is no
+    // longer guaranteed. Centralizing this means no caller has to special-case
+    // the thinking or Fable quirks. Catches both the convertToolChoice path and
+    // the structured-output forced tool.
+    {
       const tc = payload.tool_choice as { type?: string } | undefined;
       if (tc && (tc.type === 'any' || tc.type === 'tool')) {
-        console.warn(
-          `[agentos] AnthropicProvider: extended thinking is incompatible with a forced ` +
-            `tool_choice (type='${tc.type}'); clamping to 'auto' for model ${modelId}. ` +
-            `The model decides whether to call a tool — forced tool use is not guaranteed ` +
-            `while thinking is enabled.`,
-        );
-        payload.tool_choice = { type: 'auto' };
+        const thinkingActive = Boolean(payload.thinking);
+        const modelRejectsForced = !modelSupportsForcedToolChoice(modelId);
+        if (thinkingActive || modelRejectsForced) {
+          const reason = thinkingActive
+            ? 'extended thinking is incompatible with a forced tool_choice'
+            : `model ${modelId} rejects a forced tool_choice`;
+          console.warn(
+            `[agentos] AnthropicProvider: ${reason} (type='${tc.type}'); clamping to ` +
+              `'auto' for model ${modelId}. The model decides whether to call a tool — ` +
+              `forced tool use is not guaranteed.`,
+          );
+          payload.tool_choice = { type: 'auto' };
+        }
       }
     }
 
