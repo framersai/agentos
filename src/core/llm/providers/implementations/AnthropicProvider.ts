@@ -1343,6 +1343,32 @@ export class AnthropicProvider implements IProvider {
       Object.assign(payload, options.customModelParams);
     }
 
+    // --- Automatic prompt caching ---
+    // One top-level field opts the whole request into Anthropic's
+    // automatic caching: the API places a moving breakpoint on the last
+    // cacheable block, covering tools + system + messages in cache
+    // order. Agent loops that re-read a growing conversation every
+    // iteration and per-turn pipelines with a stable system prefix get
+    // cache reads (0.1x input price) with zero caller changes — without
+    // this, only callers that hand-place system-block markers ever hit
+    // the cache (observed live: ~0% org-wide hit rate, 2026-06).
+    //
+    // Composes with explicit system-block breakpoints: when the last
+    // cacheable block already carries a same-TTL marker the automatic
+    // resolution is a documented no-op. Guards the documented 400s:
+    // skipped when 4 explicit breakpoints exist (agentos only ever
+    // emits default-TTL ephemeral markers, so the different-TTL clash
+    // cannot occur). Callers that need it off (single-shot prompts
+    // where the 1.25x cache-write premium can't amortize) set
+    // AGENTOS_ANTHROPIC_AUTO_CACHE=0.
+    const autoCacheEnv = process.env.AGENTOS_ANTHROPIC_AUTO_CACHE;
+    if (autoCacheEnv !== '0' && autoCacheEnv !== 'false' && payload.cache_control === undefined) {
+      const explicitBreakpoints = systemBlocks.filter(b => b.cache_control).length;
+      if (explicitBreakpoints < 4) {
+        payload.cache_control = { type: 'ephemeral' };
+      }
+    }
+
     return payload;
   }
 

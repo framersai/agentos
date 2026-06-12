@@ -216,3 +216,81 @@ describe('AnthropicProvider cache-aware cost estimation', () => {
     expect(savings).toBeGreaterThan(0.5);
   });
 });
+
+/**
+ * Automatic prompt caching (top-level cache_control): every request
+ * opts into Anthropic's moving-breakpoint caching unless the
+ * AGENTOS_ANTHROPIC_AUTO_CACHE kill-switch is set. Exercises the REAL
+ * private buildRequestPayload (the single chokepoint feeding both the
+ * streaming and non-streaming /v1/messages paths).
+ */
+import { AnthropicProvider } from '../implementations/AnthropicProvider';
+
+describe('AnthropicProvider automatic prompt caching', () => {
+  const ENV_KEY = 'AGENTOS_ANTHROPIC_AUTO_CACHE';
+  let savedEnv: string | undefined;
+
+  beforeEach(() => {
+    savedEnv = process.env[ENV_KEY];
+    delete process.env[ENV_KEY];
+  });
+
+  afterEach(() => {
+    if (savedEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = savedEnv;
+  });
+
+  async function buildPayload(
+    messages: Array<Record<string, unknown>>,
+    options: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    const provider = new AnthropicProvider();
+    await provider.initialize({ apiKey: 'test-anthropic-key' });
+    return (provider as unknown as {
+      buildRequestPayload: (
+        modelId: string,
+        messages: unknown,
+        options: unknown,
+        stream: boolean,
+      ) => Record<string, unknown>;
+    }).buildRequestPayload('claude-sonnet-4-6', messages, options, false);
+  }
+
+  it('sets top-level cache_control by default', async () => {
+    const payload = await buildPayload([
+      { role: 'system', content: 'You are helpful.' },
+      { role: 'user', content: 'hi' },
+    ]);
+    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  it('honors the kill-switch env', async () => {
+    process.env[ENV_KEY] = '0';
+    const payload = await buildPayload([{ role: 'user', content: 'hi' }]);
+    expect(payload.cache_control).toBeUndefined();
+  });
+
+  it('composes with explicit system-block breakpoints (both survive)', async () => {
+    const payload = await buildPayload([
+      {
+        role: 'system',
+        content: [
+          { type: 'text', text: 'Stable persona prefix', cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: 'Dynamic per-turn state' },
+        ],
+      },
+      { role: 'user', content: 'hi' },
+    ]);
+    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
+    const system = payload.system as Array<{ cache_control?: unknown }>;
+    expect(Array.isArray(system)).toBe(true);
+    expect(system[0].cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  it('never clobbers a caller-supplied top-level cache_control', async () => {
+    const payload = await buildPayload([{ role: 'user', content: 'hi' }], {
+      customModelParams: { cache_control: { type: 'ephemeral', ttl: '1h' } },
+    });
+    expect(payload.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+  });
+});
