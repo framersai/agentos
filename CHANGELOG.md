@@ -1,3 +1,9 @@
+## <small>0.9.58 (2026-06-12)</small>
+
+* fix(anthropic): adapt structured output and tool_choice to model capability ([78a28d2e5cb93a1d8ab899641fcc408594ba6bbe](https://github.com/framerslab/agentos/commit/78a28d2e5cb93a1d8ab899641fcc408594ba6bbe))
+* Merge branch 'master' of https://github.com/framerslab/agentos ([e77ad9dc29bd7549b4a168cc999a2ebfaf05648a](https://github.com/framerslab/agentos/commit/e77ad9dc29bd7549b4a168cc999a2ebfaf05648a))
+* ci: move workflow actions to Node 24 runtimes ([2ce33e9a8cf2c29e4f4521212a29364810c19cb5](https://github.com/framerslab/agentos/commit/2ce33e9a8cf2c29e4f4521212a29364810c19cb5))
+
 ## <small>0.9.57 (2026-06-10)</small>
 
 * feat: add Claude Fable 5 model support ([d486b247d4c34c14ccdb5eb5b7d678b51628b085](https://github.com/framerslab/agentos/commit/d486b247d4c34c14ccdb5eb5b7d678b51628b085))
