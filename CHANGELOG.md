@@ -1,3 +1,9 @@
+## <small>0.9.60 (2026-06-12)</small>
+
+* fix(anthropic): stream generator declares and captures the cache token counts ([4910b3580148ed3dd57ac1cff6208aaa591c4845](https://github.com/framerslab/agentos/commit/4910b3580148ed3dd57ac1cff6208aaa591c4845))
+* fix(anthropic): streaming usage prices cache reads and writes like the json path ([0d38b2c49cbcc4d3400efc47f2d0a4cd54f3e406](https://github.com/framerslab/agentos/commit/0d38b2c49cbcc4d3400efc47f2d0a4cd54f3e406))
+* Merge branch 'master' of https://github.com/framerslab/agentos ([3657bfaaef5694c00b601408c4274c426d461bc3](https://github.com/framerslab/agentos/commit/3657bfaaef5694c00b601408c4274c426d461bc3))
+
 ## <small>0.9.59 (2026-06-12)</small>
 
 * test(anthropic): import the vitest lifecycle hooks ([d869c81e21238ab11c990ca09a1c71c8a8a3aea2](https://github.com/framerslab/agentos/commit/d869c81e21238ab11c990ca09a1c71c8a8a3aea2))
