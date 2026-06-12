@@ -976,7 +976,23 @@ export class AnthropicProvider implements IProvider {
               promptTokens: inputTokens,
               completionTokens: outputTokens,
               totalTokens: inputTokens + outputTokens,
-              costUSD: this.estimateCost(inputTokens, outputTokens, modelId),
+              // Cache-aware like the non-streaming path: input_tokens
+              // excludes cached tokens, so dropping the cache counts here
+              // undercosted every streamed turn once automatic caching
+              // landed (reads 0.10x + writes 1.25x are real spend).
+              costUSD: this.estimateCost(
+                inputTokens,
+                outputTokens,
+                modelId,
+                cacheReadTokens,
+                cacheCreationTokens,
+              ),
+              ...(cacheCreationTokens !== undefined && {
+                cacheCreationInputTokens: cacheCreationTokens,
+              }),
+              ...(cacheReadTokens !== undefined && {
+                cacheReadInputTokens: cacheReadTokens,
+              }),
             };
 
             yield {
