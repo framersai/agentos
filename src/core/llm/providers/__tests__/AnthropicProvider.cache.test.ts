@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 /**
  * Test the system block extraction logic that AnthropicProvider.buildRequestPayload
