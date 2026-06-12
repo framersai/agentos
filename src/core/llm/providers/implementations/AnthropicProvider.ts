@@ -830,6 +830,8 @@ export class AnthropicProvider implements IProvider {
     let accumulatedContent = '';
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheCreationTokens: number | undefined;
+    let cacheReadTokens: number | undefined;
     /** Map from content block index → tool call accumulator */
     const toolCallAccum: Map<number, { id: string; name: string; argsJson: string }> = new Map();
     /**
@@ -863,6 +865,11 @@ export class AnthropicProvider implements IProvider {
           case 'message_start': {
             responseId = event.message.id;
             inputTokens = event.message.usage?.input_tokens ?? 0;
+            // input_tokens excludes cached tokens — capture the cache
+            // counts so the final chunk's usage prices them (the
+            // accumulate path at streamToCompletion does the same).
+            cacheCreationTokens = event.message.usage?.cache_creation_input_tokens;
+            cacheReadTokens = event.message.usage?.cache_read_input_tokens;
             break;
           }
 
