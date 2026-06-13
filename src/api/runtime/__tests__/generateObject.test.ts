@@ -444,6 +444,33 @@ describe('generateObject', () => {
     expect(last).toMatchObject({ cache_control: { type: 'ephemeral' } });
   });
 
+  it('threads cacheTtl 1h through to the converted cache_control', async () => {
+    hoisted.generateCompletion.mockResolvedValue(
+      mockResponse('{"name": "Iris", "age": 33}'),
+    );
+
+    await generateObject({
+      schema: personSchema,
+      system: [
+        { text: 'Stable session prefix.', cacheBreakpoint: true, cacheTtl: '1h' },
+        { text: 'Dynamic per-turn state.' },
+      ],
+      prompt: 'Extract person info',
+    });
+
+    const messages = hoisted.generateCompletion.mock.calls[0][1];
+    const systemMsg = messages.find((m: Record<string, unknown>) => m.role === 'system');
+    const parts = systemMsg?.content as Array<Record<string, unknown>>;
+    // The 1h TTL rides the cache_control marker so a slow-cadence prefix stays
+    // cached across human-paced turns instead of expiring at 5 minutes.
+    expect(parts[0]).toMatchObject({
+      type: 'text',
+      text: 'Stable session prefix.',
+      cache_control: { type: 'ephemeral', ttl: '1h' },
+    });
+    expect(parts[1]).not.toHaveProperty('cache_control');
+  });
+
   describe('provider-specific structured-output routing (2026-05-28)', () => {
     // Before this slice, only openai got native structured-output via the
     // strict `json_schema` response_format. Anthropic / Gemini fell through

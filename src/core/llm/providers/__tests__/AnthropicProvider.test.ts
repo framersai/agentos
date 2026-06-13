@@ -11,7 +11,7 @@
  * - Streaming SSE event parsing
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Mock fetch globally so no real HTTP requests are made
@@ -340,21 +340,6 @@ describe('AnthropicProvider', () => {
   // -------------------------------------------------------------------------
 
   describe('system message handling', () => {
-    // These tests assert the system-extraction + concatenation wire format
-    // (the joined-string form). The default-on auto-cache marker — which
-    // flips `system` to a content-block array with a trailing cache_control —
-    // is covered authoritatively in AnthropicProvider.cache.test.ts; disable
-    // it here so these stay focused on extraction/ordering.
-    let savedAutoCache: string | undefined;
-    beforeEach(() => {
-      savedAutoCache = process.env.AGENTOS_ANTHROPIC_AUTO_CACHE;
-      process.env.AGENTOS_ANTHROPIC_AUTO_CACHE = '0';
-    });
-    afterEach(() => {
-      if (savedAutoCache === undefined) delete process.env.AGENTOS_ANTHROPIC_AUTO_CACHE;
-      else process.env.AGENTOS_ANTHROPIC_AUTO_CACHE = savedAutoCache;
-    });
-
     it('extracts system messages to top-level system field (not a message role)', async () => {
       fetchMock.mockResolvedValueOnce(mockSseResponse(makeAnthropicResponse()));
 

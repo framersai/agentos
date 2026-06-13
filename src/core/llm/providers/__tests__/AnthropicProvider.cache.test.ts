@@ -218,15 +218,15 @@ describe('AnthropicProvider cache-aware cost estimation', () => {
 });
 
 /**
- * Automatic prompt caching: every request with a system prompt opts into
- * Anthropic's prompt caching unless the AGENTOS_ANTHROPIC_AUTO_CACHE
- * kill-switch is set. The Anthropic Messages API has NO request-level
- * `cache_control` field — the marker is only honored when attached to an
- * individual content block, where it caches the prefix up to and including
- * that block (tools + system, in cache order). The marker therefore rides
- * the LAST system block, never the request root. Exercises the REAL private
- * buildRequestPayload (the single chokepoint feeding both the streaming and
- * non-streaming /v1/messages paths).
+ * Automatic prompt caching: a request-level `cache_control` is a real
+ * Anthropic feature (verified empirically 2026-06 — a top-level
+ * `{type:'ephemeral'}` writes the cache and reads it back on the next
+ * identical request). The API auto-places a moving cache breakpoint on the
+ * last cacheable block (tools + system + messages). buildRequestPayload sets
+ * it by default and STANDS DOWN whenever the caller has placed an explicit
+ * block-level breakpoint, so a caller's 1h-TTL breakpoint is never mixed with
+ * a 5-min auto one. Exercises the REAL private buildRequestPayload (the single
+ * chokepoint feeding both the streaming and non-streaming /v1/messages paths).
  */
 import { AnthropicProvider } from '../implementations/AnthropicProvider';
 
@@ -260,54 +260,48 @@ describe('AnthropicProvider automatic prompt caching', () => {
     }).buildRequestPayload('claude-sonnet-4-6', messages, options, false);
   }
 
-  it('marks the last system block by default and sends NO top-level cache_control', async () => {
+  it('sets a top-level cache_control by default and leaves system untouched', async () => {
     const payload = await buildPayload([
       { role: 'system', content: 'You are a stable, reusable system prompt.' },
       { role: 'user', content: 'hi' },
     ]);
-    // A request-level cache_control is silently ignored by the API — it must
-    // never be emitted.
-    expect(payload.cache_control).toBeUndefined();
-    // System is emitted as a content-block array with the marker on the LAST
-    // block so the whole stable prefix caches.
-    const system = payload.system as Array<{ type: string; text: string; cache_control?: unknown }>;
-    expect(Array.isArray(system)).toBe(true);
-    expect(system[system.length - 1].cache_control).toEqual({ type: 'ephemeral' });
+    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
+    // Auto-cache does NOT restructure the system — it stays the joined string.
+    expect(typeof payload.system).toBe('string');
   });
 
-  it('honors the kill-switch env (system stays an unmarked string)', async () => {
+  it('sets a top-level cache_control even with no system block', async () => {
+    const payload = await buildPayload([{ role: 'user', content: 'hi' }]);
+    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  it('honors the kill-switch env', async () => {
     process.env[ENV_KEY] = '0';
     const payload = await buildPayload([
       { role: 'system', content: 'A system prompt.' },
       { role: 'user', content: 'hi' },
     ]);
     expect(payload.cache_control).toBeUndefined();
-    expect(typeof payload.system).toBe('string');
   });
 
-  it('defers to a caller-placed breakpoint (does not mark the dynamic tail block)', async () => {
+  it('stands down when the caller placed an explicit breakpoint, preserving its 1h TTL', async () => {
     const payload = await buildPayload([
       {
         role: 'system',
         content: [
-          { type: 'text', text: 'Stable persona prefix', cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: 'Stable persona prefix', cache_control: { type: 'ephemeral', ttl: '1h' } },
           { type: 'text', text: 'Dynamic per-turn state' },
         ],
       },
       { role: 'user', content: 'hi' },
     ]);
+    // No top-level breakpoint added alongside the caller's explicit one (would
+    // mix a 5-min auto TTL with the caller's 1h TTL in one request).
     expect(payload.cache_control).toBeUndefined();
     const system = payload.system as Array<{ cache_control?: unknown }>;
     expect(Array.isArray(system)).toBe(true);
-    // The caller's explicit marker on the stable prefix survives...
-    expect(system[0].cache_control).toEqual({ type: 'ephemeral' });
-    // ...and auto-cache does NOT add a second marker to the dynamic tail.
+    // The caller's explicit 1h breakpoint is preserved verbatim.
+    expect(system[0].cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
     expect(system[1].cache_control).toBeUndefined();
-  });
-
-  it('no-ops when the request has no system block', async () => {
-    const payload = await buildPayload([{ role: 'user', content: 'hi' }]);
-    expect(payload.cache_control).toBeUndefined();
-    expect(payload.system).toBeUndefined();
   });
 });

@@ -1367,40 +1367,29 @@ export class AnthropicProvider implements IProvider {
     }
 
     // --- Automatic prompt caching ---
-    // The Anthropic Messages API has NO request-level `cache_control`: the
-    // marker is only honored on an individual content block, where it caches
-    // the prefix up to and including that block (tools + system, in cache
-    // order). A top-level field is silently ignored — which is why an earlier
-    // top-level implementation left a ~0% org-wide hit rate (2026-06) despite
-    // appearing to opt every request in. The marker therefore rides the LAST
-    // system block: the large, stable system prefix (narrator/companion
-    // system prompts, agent-loop instructions, generateObject schema text)
-    // caches with zero caller changes, and per-turn / agent-loop callers that
-    // re-send the same prefix within the 5-min TTL get cache reads (0.1x
-    // input price).
+    // A request-level `cache_control` is a real Anthropic feature: the API
+    // auto-places a moving cache breakpoint on the last cacheable block,
+    // covering tools + system + messages in cache order. Verified empirically
+    // (2026-06): a request carrying a top-level `{type:'ephemeral'}` writes the
+    // cache and reads it back on the next identical request within the TTL.
+    // Per-turn pipelines and agent loops that re-send a stable prefix get cache
+    // reads (0.1x input price) with zero caller changes.
     //
     // Defers entirely to caller-placed breakpoints: when any system block
-    // already carries a marker (e.g. a `cacheBreakpoint` from generateText /
-    // generateObject), the caller has chosen exactly what to cache, so the
-    // auto-marker is skipped rather than tagging the dynamic tail. Callers
-    // that need it off (single-shot prompts ≥1024 tokens where the 1.25x
-    // cache-write premium can't amortize) set AGENTOS_ANTHROPIC_AUTO_CACHE=0.
-    // Conversation-history coverage for long agent loops (marking the last
-    // message block too) is a separate follow-up.
+    // already carries a `cache_control` marker (e.g. a `cacheBreakpoint` from
+    // generateText / generateObject — possibly with a non-default 1h TTL), the
+    // caller owns exactly what is cached and at which TTL. Adding a separate
+    // top-level (5-min) breakpoint alongside a caller's 1h breakpoint would mix
+    // TTLs in one request, so the auto-marker stands down whenever the caller
+    // has marked anything.
+    //
+    // Callers that need it off (single-shot prompts where the cache-write
+    // premium can't amortize) set AGENTOS_ANTHROPIC_AUTO_CACHE=0.
     const autoCacheEnv = process.env.AGENTOS_ANTHROPIC_AUTO_CACHE;
-    if (
-      autoCacheEnv !== '0' &&
-      autoCacheEnv !== 'false' &&
-      payload.cache_control === undefined &&
-      systemBlocks.length > 0
-    ) {
+    if (autoCacheEnv !== '0' && autoCacheEnv !== 'false' && payload.cache_control === undefined) {
       const explicitBreakpoints = systemBlocks.filter(b => b.cache_control).length;
       if (explicitBreakpoints === 0) {
-        systemBlocks[systemBlocks.length - 1].cache_control = { type: 'ephemeral' };
-        // The earlier system emit stringified the blocks because no markers
-        // were present yet; re-emit as the content-block array so the marker
-        // reaches the wire.
-        payload.system = systemBlocks;
+        payload.cache_control = { type: 'ephemeral' };
       }
     }
 

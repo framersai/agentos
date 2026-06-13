@@ -226,6 +226,16 @@ export interface SystemContentBlock {
   text: string;
   /** When true, marks the end of this block as a cache boundary. */
   cacheBreakpoint?: boolean;
+  /**
+   * Cache time-to-live for this breakpoint. Defaults to the provider's
+   * standard 5-minute ephemeral cache. Set `'1h'` for the 1-hour cache —
+   * worth the higher write premium (2x base input vs 1.25x) on a stable
+   * prefix that is re-sent on a slow, human-paced cadence (per-turn narrator
+   * / companion calls minutes apart), where the 5-minute cache would expire
+   * between turns and never produce reads. Only meaningful with
+   * `cacheBreakpoint: true`.
+   */
+  cacheTtl?: '5m' | '1h';
 }
 
 export interface GenerateTextOptions {
@@ -1176,7 +1186,9 @@ export async function generateText(opts: GenerateTextOptions): Promise<GenerateT
         const parts = blocks.map(block => ({
           type: 'text' as const,
           text: block.text,
-          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } }: {}),
+          ...(block.cacheBreakpoint
+            ? { cache_control: { type: 'ephemeral' as const, ...(block.cacheTtl === '1h' ? { ttl: '1h' as const } : {}) } }
+            : {}),
         }));
 
         // Prepend CoT instruction as the first non-cached block if needed

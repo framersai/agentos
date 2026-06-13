@@ -291,7 +291,9 @@ export function streamText(opts: GenerateTextOptions): StreamTextResult {
         const parts = blocks.map(block => ({
           type: 'text' as const,
           text: block.text,
-          ...(block.cacheBreakpoint ? { cache_control: { type: 'ephemeral' as const } }: {}),
+          ...(block.cacheBreakpoint
+            ? { cache_control: { type: 'ephemeral' as const, ...(block.cacheTtl === '1h' ? { ttl: '1h' as const } : {}) } }
+            : {}),
         }));
 
         if (cotInstruction && hasTools) {
