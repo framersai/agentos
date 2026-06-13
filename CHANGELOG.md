@@ -1,3 +1,8 @@
+## <small>0.9.62 (2026-06-13)</small>
+
+* Merge branch 'master' of https://github.com/framerslab/agentos ([181730cc77d1f891160d553efda1808f3d5d9ced](https://github.com/framerslab/agentos/commit/181730cc77d1f891160d553efda1808f3d5d9ced))
+* feat(anthropic): request-level auto-cache + opt-in 1h cache TTL ([2fecc339d2373fadae2467e0a5d8ee7403b8ce58](https://github.com/framerslab/agentos/commit/2fecc339d2373fadae2467e0a5d8ee7403b8ce58))
+
 ## <small>0.9.61 (2026-06-13)</small>
 
 * Merge branch 'master' of https://github.com/framerslab/agentos ([4a2b1bd3da9ee6624b19a420770f519a2c4d34a0](https://github.com/framerslab/agentos/commit/4a2b1bd3da9ee6624b19a420770f519a2c4d34a0))
