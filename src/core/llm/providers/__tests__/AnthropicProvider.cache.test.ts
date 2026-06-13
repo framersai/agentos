@@ -218,11 +218,15 @@ describe('AnthropicProvider cache-aware cost estimation', () => {
 });
 
 /**
- * Automatic prompt caching (top-level cache_control): every request
- * opts into Anthropic's moving-breakpoint caching unless the
- * AGENTOS_ANTHROPIC_AUTO_CACHE kill-switch is set. Exercises the REAL
- * private buildRequestPayload (the single chokepoint feeding both the
- * streaming and non-streaming /v1/messages paths).
+ * Automatic prompt caching: every request with a system prompt opts into
+ * Anthropic's prompt caching unless the AGENTOS_ANTHROPIC_AUTO_CACHE
+ * kill-switch is set. The Anthropic Messages API has NO request-level
+ * `cache_control` field — the marker is only honored when attached to an
+ * individual content block, where it caches the prefix up to and including
+ * that block (tools + system, in cache order). The marker therefore rides
+ * the LAST system block, never the request root. Exercises the REAL private
+ * buildRequestPayload (the single chokepoint feeding both the streaming and
+ * non-streaming /v1/messages paths).
  */
 import { AnthropicProvider } from '../implementations/AnthropicProvider';
 
@@ -256,21 +260,32 @@ describe('AnthropicProvider automatic prompt caching', () => {
     }).buildRequestPayload('claude-sonnet-4-6', messages, options, false);
   }
 
-  it('sets top-level cache_control by default', async () => {
+  it('marks the last system block by default and sends NO top-level cache_control', async () => {
     const payload = await buildPayload([
-      { role: 'system', content: 'You are helpful.' },
+      { role: 'system', content: 'You are a stable, reusable system prompt.' },
       { role: 'user', content: 'hi' },
     ]);
-    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
-  });
-
-  it('honors the kill-switch env', async () => {
-    process.env[ENV_KEY] = '0';
-    const payload = await buildPayload([{ role: 'user', content: 'hi' }]);
+    // A request-level cache_control is silently ignored by the API — it must
+    // never be emitted.
     expect(payload.cache_control).toBeUndefined();
+    // System is emitted as a content-block array with the marker on the LAST
+    // block so the whole stable prefix caches.
+    const system = payload.system as Array<{ type: string; text: string; cache_control?: unknown }>;
+    expect(Array.isArray(system)).toBe(true);
+    expect(system[system.length - 1].cache_control).toEqual({ type: 'ephemeral' });
   });
 
-  it('composes with explicit system-block breakpoints (both survive)', async () => {
+  it('honors the kill-switch env (system stays an unmarked string)', async () => {
+    process.env[ENV_KEY] = '0';
+    const payload = await buildPayload([
+      { role: 'system', content: 'A system prompt.' },
+      { role: 'user', content: 'hi' },
+    ]);
+    expect(payload.cache_control).toBeUndefined();
+    expect(typeof payload.system).toBe('string');
+  });
+
+  it('defers to a caller-placed breakpoint (does not mark the dynamic tail block)', async () => {
     const payload = await buildPayload([
       {
         role: 'system',
@@ -281,16 +296,18 @@ describe('AnthropicProvider automatic prompt caching', () => {
       },
       { role: 'user', content: 'hi' },
     ]);
-    expect(payload.cache_control).toEqual({ type: 'ephemeral' });
+    expect(payload.cache_control).toBeUndefined();
     const system = payload.system as Array<{ cache_control?: unknown }>;
     expect(Array.isArray(system)).toBe(true);
+    // The caller's explicit marker on the stable prefix survives...
     expect(system[0].cache_control).toEqual({ type: 'ephemeral' });
+    // ...and auto-cache does NOT add a second marker to the dynamic tail.
+    expect(system[1].cache_control).toBeUndefined();
   });
 
-  it('never clobbers a caller-supplied top-level cache_control', async () => {
-    const payload = await buildPayload([{ role: 'user', content: 'hi' }], {
-      customModelParams: { cache_control: { type: 'ephemeral', ttl: '1h' } },
-    });
-    expect(payload.cache_control).toEqual({ type: 'ephemeral', ttl: '1h' });
+  it('no-ops when the request has no system block', async () => {
+    const payload = await buildPayload([{ role: 'user', content: 'hi' }]);
+    expect(payload.cache_control).toBeUndefined();
+    expect(payload.system).toBeUndefined();
   });
 });
