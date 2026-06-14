@@ -608,4 +608,52 @@ describe('generateObject', () => {
       expect(args.responseFormat).toEqual({ type: 'json_object' });
     });
   });
+
+  describe('truncation-aware retry (finishReason: length)', () => {
+    // A response cut off at the output-token limit produces unterminated JSON;
+    // extractJson throws, and the legacy retry re-ran with the SAME budget →
+    // it truncated again → exhausted → ObjectGenerationError. generateObject
+    // now detects finishReason 'length' and ESCALATES maxTokens on the next
+    // attempt (the provider layer clamps it to the model's real ceiling), so a
+    // truncated structured-output call self-heals instead of hard-failing.
+    function truncatedResponse(text: string) {
+      return {
+        modelId: 'gpt-4o',
+        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        choices: [{ message: { role: 'assistant', content: text }, finishReason: 'length' }],
+      };
+    }
+
+    it('escalates the token budget after a truncated attempt, then succeeds', async () => {
+      hoisted.generateCompletion
+        .mockResolvedValueOnce(truncatedResponse('{"name": "Eve", "age":')) // cut off mid-JSON
+        .mockResolvedValueOnce(mockResponse('{"name": "Eve", "age": 31}')); // complete
+
+      const result = await generateObject({
+        schema: personSchema,
+        prompt: 'Extract person info',
+        maxRetries: 2,
+      });
+
+      expect(result.object).toEqual({ name: 'Eve', age: 31 });
+      const firstBudget = hoisted.generateCompletion.mock.calls[0][2].maxTokens as number;
+      const secondBudget = hoisted.generateCompletion.mock.calls[1][2].maxTokens as number;
+      expect(secondBudget).toBeGreaterThan(firstBudget);
+    });
+
+    it('does NOT escalate on a non-truncated parse failure (finishReason stop)', async () => {
+      // Malformed-but-complete JSON is a content error, not a budget problem —
+      // more tokens won't help, so the budget must stay flat (only corrective
+      // feedback is appended).
+      hoisted.generateCompletion
+        .mockResolvedValueOnce(mockResponse('{"name": "Eve", "age":')) // finishReason 'stop'
+        .mockResolvedValueOnce(mockResponse('{"name": "Eve", "age": 31}'));
+
+      await generateObject({ schema: personSchema, prompt: 'Extract person info', maxRetries: 2 });
+
+      const firstBudget = hoisted.generateCompletion.mock.calls[0][2].maxTokens as number;
+      const secondBudget = hoisted.generateCompletion.mock.calls[1][2].maxTokens as number;
+      expect(secondBudget).toBe(firstBudget);
+    });
+  });
 });

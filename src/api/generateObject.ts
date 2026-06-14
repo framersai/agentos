@@ -367,6 +367,21 @@ const MAX_FEEDBACK_BAD_RESPONSE_CHARS = 500;
 const MAX_FEEDBACK_VALIDATION_ISSUES = 5;
 
 /**
+ * Ceiling for the truncation-aware budget escalation (see the retry loop).
+ * When an attempt stops with `finishReason: 'length'` the output was cut off
+ * by the token limit, so the next attempt is retried with `maxTokens` grown by
+ * {@link TRUNCATION_ESCALATION_FACTOR} up to this ceiling. The provider layer
+ * (`clampMaxOutputTokens`) reshapes it down to each model's real ceiling, so
+ * this is a safe upper bound across providers (Sonnet ~64K, Opus 128K).
+ */
+const TRUNCATION_RETRY_MAX_TOKENS = 64000;
+const TRUNCATION_ESCALATION_FACTOR = 1.5;
+const TRUNCATION_RETRY_FEEDBACK =
+  'Your previous response was cut off before the JSON was complete (the output hit the token limit). ' +
+  'The token budget has been increased — respond again with ONLY the complete JSON object, ' +
+  'keeping any long string fields as concise as the schema allows.';
+
+/**
  * Truncates a bad LLM response for retry feedback to avoid prompt-token bloat.
  * @internal
  */
@@ -386,6 +401,17 @@ function summarizeZodErrors(error: ZodError): string {
     lines.push(`(${error.issues.length - MAX_FEEDBACK_VALIDATION_ISSUES} more issues omitted)`);
   }
   return lines.join('\n');
+}
+
+/**
+ * Grows the output-token budget after a truncated attempt, capped at
+ * {@link TRUNCATION_RETRY_MAX_TOKENS}. The provider layer clamps the result to
+ * the target model's real ceiling, so this can never produce a request the
+ * model rejects.
+ * @internal
+ */
+function escalateForTruncation(current: number): number {
+  return Math.min(TRUNCATION_RETRY_MAX_TOKENS, Math.ceil(current * TRUNCATION_ESCALATION_FACTOR));
 }
 
 // ---------------------------------------------------------------------------
@@ -532,7 +558,11 @@ export async function generateObject<T extends ZodType>(
   // (256-512 tokens) and JSON.parse fails on the unfinished output. The
   // estimate scales with field count and array nesting depth so simple
   // schemas don't pay for tokens they won't use.
-  const effectiveMaxTokens = opts.maxTokens ?? estimateMaxTokensForZodSchema(opts.schema);
+  //
+  // `let`, not `const`: a truncated attempt (finishReason 'length') escalates
+  // this for the next attempt so a cut-off structured-output call self-heals
+  // instead of re-truncating with the same budget (see the retry loop below).
+  let currentMaxTokens = opts.maxTokens ?? estimateMaxTokensForZodSchema(opts.schema);
 
   // Attempt generation up to 1 + maxRetries times (initial + retries)
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -542,7 +572,7 @@ export async function generateObject<T extends ZodType>(
       system: systemPrompt,
       messages,
       temperature: opts.temperature,
-      maxTokens: effectiveMaxTokens,
+      maxTokens: currentMaxTokens,
       apiKey: opts.apiKey,
       baseUrl: opts.baseUrl,
       fallbackProviders: opts.fallbackProviders,
@@ -591,17 +621,29 @@ export async function generateObject<T extends ZodType>(
     try {
       parsed = extractJson(result.text);
     } catch (parseErr) {
-      // JSON extraction failed — append truncated feedback and retry
+      // JSON extraction failed — retry. A truncated attempt (finishReason
+      // 'length') is a BUDGET problem, not malformed content: grow the budget
+      // instead of telling the model its JSON was invalid (which would mislead
+      // it into "fixing" correct-but-cut-off output).
       if (attempt < maxRetries) {
         messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
-        messages.push({
-          role: 'user',
-          content: `Your response was not valid JSON. Error: ${(parseErr as Error).message}\n\nPlease respond with ONLY a valid JSON object matching the schema. No markdown, no code fences.`,
-        });
+        if (result.finishReason === 'length') {
+          currentMaxTokens = escalateForTruncation(currentMaxTokens);
+          messages.push({ role: 'user', content: TRUNCATION_RETRY_FEEDBACK });
+        } else {
+          messages.push({
+            role: 'user',
+            content: `Your response was not valid JSON. Error: ${(parseErr as Error).message}\n\nPlease respond with ONLY a valid JSON object matching the schema. No markdown, no code fences.`,
+          });
+        }
         continue;
       }
       throw new ObjectGenerationError(
-        `Failed to extract valid JSON after ${maxRetries + 1} attempts: ${(parseErr as Error).message}`,
+        `Failed to extract valid JSON after ${maxRetries + 1} attempts${
+          result.finishReason === 'length'
+            ? ' (output was truncated at the token limit — the schema may need a smaller output or an explicit maxTokens)'
+            : ''
+        }: ${(parseErr as Error).message}`,
         result.text,
       );
     }
@@ -636,10 +678,18 @@ export async function generateObject<T extends ZodType>(
     if (attempt < maxRetries) {
       // Append truncated feedback to avoid prompt-token bloat on retries
       messages.push({ role: 'assistant', content: summarizeBadResponse(result.text) });
-      messages.push({
-        role: 'user',
-        content: `The JSON you produced does not match the required schema. Validation errors:\n${summarizeZodErrors(validation.error)}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
-      });
+      if (result.finishReason === 'length') {
+        // Parsed but incomplete because the output was cut off mid-object
+        // (e.g. a required field never emitted) — grow the budget rather than
+        // ask the model to "fix" a schema mismatch it didn't cause.
+        currentMaxTokens = escalateForTruncation(currentMaxTokens);
+        messages.push({ role: 'user', content: TRUNCATION_RETRY_FEEDBACK });
+      } else {
+        messages.push({
+          role: 'user',
+          content: `The JSON you produced does not match the required schema. Validation errors:\n${summarizeZodErrors(validation.error)}\n\nPlease fix the JSON and respond with ONLY a valid JSON object.`,
+        });
+      }
       continue;
     }
   }
