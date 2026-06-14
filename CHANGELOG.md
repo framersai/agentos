@@ -1,3 +1,8 @@
+## <small>0.9.63 (2026-06-14)</small>
+
+* Merge branch 'master' of https://github.com/framerslab/agentos ([d83682383b435bbfd047217b64716e4c3833e091](https://github.com/framerslab/agentos/commit/d83682383b435bbfd047217b64716e4c3833e091))
+* fix(generateObject): truncation-aware retry — escalate maxTokens on finishReason 'length' instead of re-truncating ([e706684d8b5be9ed967f41014e36c321aa73d702](https://github.com/framerslab/agentos/commit/e706684d8b5be9ed967f41014e36c321aa73d702))
+
 ## <small>0.9.62 (2026-06-13)</small>
 
 * Merge branch 'master' of https://github.com/framerslab/agentos ([181730cc77d1f891160d553efda1808f3d5d9ced](https://github.com/framerslab/agentos/commit/181730cc77d1f891160d553efda1808f3d5d9ced))
